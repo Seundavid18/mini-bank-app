@@ -20,7 +20,7 @@ steps:
 - task: Npm@1
   inputs:
     command: 'custom'
-    workingDir: 'client'
+    workingDir: 'mini-bank-app'
     customCommand: 'Contains pkg.json file'
 - task: PublishBuildArtifacts@1
   inputs:
