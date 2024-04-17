@@ -21,7 +21,7 @@ steps:
   inputs:
     command: 'custom'
     workingDir: 'client'
-    customCommand: 'npm config get cache'
+    customCommand: 'cache clean --force'
 - task: PublishBuildArtifacts@1
   inputs:
     PathtoPublish: '$(Build.ArtifactStagingDirectory)'
