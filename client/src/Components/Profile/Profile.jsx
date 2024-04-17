@@ -10,7 +10,7 @@ export default function Profile() {
     const {user, dispatch, isFetching} = useContext(Context)
     const [file, setFile] = useState(null)
     const [success, setSuccess] = useState(false)
-    const DP = "https://seunbankapp.azurewebsites.net/images/"
+    const displayPicture = "https://seunbankapp.azurewebsites.net/images/"
 
     const handleFile = (e) => {
         setFile(e.target.files[0])
@@ -50,7 +50,7 @@ export default function Profile() {
 
   return (
     <>
-        <img className="nav-item nav-dp" src={file ? URL.createObjectURL(file) : DP + user.profilePicture} alt="" data-bs-toggle="modal" data-bs-target="#addProfileModal"/>
+        <img className="nav-item nav-dp" src={file ? URL.createObjectURL(file) : displayPicture + user.profilePicture} alt="" data-bs-toggle="modal" data-bs-target="#addProfileModal"/>
         <h5 className='fs-6 fw-bold mt-2 ms-4 text-secondary nav-name'>{user.fullName}</h5>
 
          {/* Add Modal */}
@@ -69,7 +69,7 @@ export default function Profile() {
                         <form id="addform" className='' onSubmit={handleSubmit}>
                             <div className="mb-3">
                              <div className='d-flex justify-content-center'>
-                                <img className="nav-item nav-profile" src={file ? URL.createObjectURL(file) : DP + user.profilePicture} alt=""/>
+                                <img className="nav-item nav-profile" src={file ? URL.createObjectURL(file) : displayPicture + user.profilePicture} alt=""/>
                                 <label htmlFor="fileInput">
                                 <FaUserCircle className='settingsDpIcon mt-5'/>
                                 </label>
