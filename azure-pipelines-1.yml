@@ -20,8 +20,8 @@ steps:
 - task: Npm@1
   inputs:
     command: 'custom'
-    workingDir: 'build'
-    customCommand: 'Run npm build'
+    workingDir: 'client'
+    customCommand: 'Contains pkg.json file'
 - task: PublishBuildArtifacts@1
   inputs:
     PathtoPublish: '$(Build.ArtifactStagingDirectory)'
