@@ -21,7 +21,7 @@ steps:
   inputs:
     command: 'custom'
     workingDir: 'client'
-    customCommand: 'Contains pkg.json file'
+    customCommand: 'npm config get cache'
 - task: PublishBuildArtifacts@1
   inputs:
     PathtoPublish: '$(Build.ArtifactStagingDirectory)'
