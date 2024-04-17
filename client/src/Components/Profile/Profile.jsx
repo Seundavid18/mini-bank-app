@@ -10,7 +10,7 @@ export default function Profile() {
     const {user, dispatch, isFetching} = useContext(Context)
     const [file, setFile] = useState(null)
     const [success, setSuccess] = useState(false)
-    const DP = "https://chasebankapp.herokuapp.com/images/"
+    const DP = "https://seunbankapp.azurewebsites.net/images/"
 
     const handleFile = (e) => {
         setFile(e.target.files[0])
