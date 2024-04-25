@@ -108,13 +108,14 @@ const [fullName, setFullName] = useState("")
                                             <div className="loginForm">
                                             <label className="mb-2 form-font fs-6">Pin</label>
                                             <input 
-                                            className="formInput mb-4" 
+                                            className="formInput mb-3" 
                                             type="password"   
                                             placeholder="Enter your Pin (4 number characters)" 
                                             required
                                             onChange={handlePin}
                                             />
                                             </div>    
+                                            <p className='text-center agree mb-4'>By signing up you agree that your data will be stored in our database.</p>
                                             <button type="submit" className='loginButton mb-4' disabled={loading}>
                                               {loading ? (
                                                   <CircularProgress size={18} className="mt-1"/>
@@ -131,6 +132,7 @@ const [fullName, setFullName] = useState("")
                                                 </Link>
                                             </button>
                                             </p>
+                                      
                                         </form>
                         </div>
                 </div>      
