@@ -20,8 +20,8 @@ steps:
 - task: Npm@1
   inputs:
     command: 'custom'
-    workingDir: '$(System.DefaultWorkingDirectory)'
-    customCommand: 'cache clean --force'
+    workingDir: 'client'
+    customCommand: 'build'
 - task: CopyFiles@2
   inputs:
     targetFolder: '$(Build.ArtifactStagingDirectory)' 
