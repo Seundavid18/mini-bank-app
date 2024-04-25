@@ -22,6 +22,11 @@ steps:
     command: 'custom'
     workingDir: '$(System.DefaultWorkingDirectory)'
     customCommand: 'cache clean --force'
+- task: Npm@1
+  inputs:
+    command: 'custom'
+    workingDir: 'client'
+    customCommand: 'npm run build'
 - task: CopyFiles@2
   inputs:
     targetFolder: '$(Build.ArtifactStagingDirectory)' 
