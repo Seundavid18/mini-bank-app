@@ -21,7 +21,7 @@ steps:
   inputs:
     command: 'custom'
     workingDir: 'client'
-    customCommand: 'build'
+    customCommand: 'react-scripts build'
 - task: CopyFiles@2
   inputs:
     targetFolder: '$(Build.ArtifactStagingDirectory)' 
