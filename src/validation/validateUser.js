@@ -20,7 +20,7 @@ const Joi = require('joi');
       .min(4)
       .max(4)
       .required()
-      .regex(/^[0-9]$/)
+      .regex(/^\d{0,4}$/)
     })
     return schema.validate(user);
 }

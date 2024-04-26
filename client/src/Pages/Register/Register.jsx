@@ -115,8 +115,8 @@ const [fullName, setFullName] = useState("")
                                             onChange={handlePin}
                                             />
                                             </div>    
-                                            <p className='text-center agree mb-4'>By signing up you agree that your data will be stored in our database.</p>
-                                            <button type="submit" className='loginButton mb-4' disabled={loading}>
+                                            <p className='text-center agree mt-3 mb-3'>By signing up you agree that your data will be stored in our database.</p>
+                                            <button type="submit" className='loginButton mb-2' disabled={loading}>
                                               {loading ? (
                                                   <CircularProgress size={18} className="mt-1"/>
                                                   ) : (
