@@ -27,6 +27,6 @@ steps:
     targetFolder: '$(Build.ArtifactStagingDirectory)' 
 - task: PublishBuildArtifacts@1
   inputs:
-    PathtoPublish: 'build'
+    PathtoPublish: 'client'
     ArtifactName: 'drop'
     publishLocation: 'Container'
