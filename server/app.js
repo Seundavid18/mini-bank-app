@@ -37,11 +37,19 @@ const router = require("./src/router/userrouter");
 app.use(cors());
 app.use("/api",router);
 
-app.use(express.static("../client/build"));
+// app.use(express.static("../client/build"));
 
-app.get("*", (req, res) => {
-    res.sendFile(path.resolve(__dirname, "client", "build", "index.html"))
-});
+// app.get("*", (req, res) => {
+//     res.sendFile(path.resolve(__dirname, "client", "build", "index.html"))
+// });
+
+const buildPath = path.join(__dirname, '../client/build')
+
+app.use(express.static(buildPath))
+
+app.get("/*", (req, res) => {
+    res.sendFile('index.html', {root : buildPath })
+})
 
 // app.use(express.static(path.join(__dirname, "/client/build")))
 
