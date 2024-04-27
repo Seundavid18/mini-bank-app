@@ -33,9 +33,7 @@ steps:
 - task: CopyFiles@2
   displayName: 'Copy files'
   inputs:
-    Contents: |
-      client/**
-      server/**
+    Contents: '**'
     TargetFolder: '$(Build.ArtifactStagingDirectory)'
 - task: PublishBuildArtifacts@1
   displayName: 'Publish Artifacts'

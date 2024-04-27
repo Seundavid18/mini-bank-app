@@ -48,7 +48,7 @@ app.get("*", (req, res) => {
 // app.use(express.static(buildPath))
 
 // app.get("/*", (req, res) => {
-//     res.sendFile('index.html', {root : buildPath })
+//     res.sendFile('index.html', { root : buildPath })
 // })
 
 // app.use(express.static(path.join(__dirname, "/client/build")))
