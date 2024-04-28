@@ -1,6 +1,6 @@
 const express = require("express")
 const app = express()
-const connectDB = require("../server/config/config")
+const connectDB = require("./config/config")
 const dotenv = require('dotenv')
 dotenv.config()
 const cors = require('cors')
@@ -32,31 +32,16 @@ app.post('/api/upload', upload.single("file"), (req, res) => {
 
 
 
-const router = require("../server/src/router/userrouter");
+const router = require("./src/router/userrouter");
 
 app.use(cors());
 app.use("/api",router);
 
-app.use(express.static("../client/build"));
+app.use(express.static("./client/build"));
 
 app.get("*", (req, res) => {
     res.sendFile(path.resolve(__dirname, "client", "build", "index.html"))
 });
-
-// const buildPath = path.join(__dirname, '../client/build')
-
-// app.use(express.static(buildPath))
-
-// app.get("/*", (req, res) => {
-//     res.sendFile('index.html', { root : buildPath })
-// })
-
-// app.use(express.static(path.join(__dirname, "/client/build")))
-
-// app.get("*", (req, res) => {
-//     res.sendFile(path.join(__dirname, "/client/build", "index.html"))
-// })
-
 
 app.listen(PORT,() => {
     console.log(`app is listening on port ${PORT}`)
