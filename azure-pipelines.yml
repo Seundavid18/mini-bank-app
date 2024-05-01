@@ -39,7 +39,7 @@ steps:
   displayName: 'Copy Selenium Files'
   inputs:
     Contents: |
-      selenium-tests/tests/**
+      selenium-tests/**
     TargetFolder: '$(Build.ArtifactStagingDirectory)'
 - task: CopyFiles@2
   displayName: 'Copy Server Files'
@@ -48,6 +48,7 @@ steps:
       **
       !.git/**
       !client/**
+      !selenium-tests/**
     TargetFolder: '$(Build.ArtifactStagingDirectory)'
 - task: PublishBuildArtifacts@1
   displayName: 'Publish Artifacts'
