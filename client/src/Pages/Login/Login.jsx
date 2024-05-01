@@ -47,7 +47,7 @@ export default function Login() {
                     }
                         <div className="row mx-auto justify-content-center align-items-center flex-column ">
                                         <form onSubmit={handleSubmit}>
-                                            <div className="loginForm">
+                                            <div className="loginForm" id='email'>
                                             <label className="mb-2 form-font fs-6">Email Address</label>
                                             <input 
                                             className="formInput mb-4" 
@@ -58,7 +58,7 @@ export default function Login() {
                                             />
                                             </div>
 
-                                            <div className="loginForm">
+                                            <div className="loginForm" id='password'>
                                             <label class="mb-2 form-font fs-6">Password</label>
                                             <input 
                                             className="formInput mb-4" 
