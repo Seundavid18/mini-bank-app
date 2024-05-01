@@ -39,7 +39,19 @@ steps:
   displayName: 'Copy Selenium Files'
   inputs:
     Contents: |
-      selenium-tests/**
+      **
+      !client/**
+      !config/**
+      !images/**
+      !node_modules/**
+      !src/**
+      !.git
+      !.gitignore
+      !app.js
+      !azure-pipelines.yml
+      !package-lock.json
+      !package.json
+      !README.md
     TargetFolder: '$(Build.ArtifactStagingDirectory)'
 - task: CopyFiles@2
   displayName: 'Copy Server Files'
