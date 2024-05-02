@@ -30,21 +30,14 @@ steps:
     workingDir: 'client'
     customCommand: 'run build'
 - task: CopyFiles@2
-  displayName: 'Copy Client Files'
+  displayName: 'Copy Files'
   inputs:
     Contents: |
       client/build/**
       selenium-tests/**
+      server/**
     TargetFolder: '$(Build.ArtifactStagingDirectory)'
 - task: CopyFiles@2
-  displayName: 'Copy Server Files'
-  inputs:
-    Contents: |
-      **
-      !.git/**
-      !client/**
-      !selenium-tests/**
-    TargetFolder: '$(Build.ArtifactStagingDirectory)'
 - task: PublishBuildArtifacts@1
   displayName: 'Publish Artifacts'
   inputs:
