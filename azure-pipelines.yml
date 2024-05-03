@@ -35,7 +35,6 @@ steps:
   inputs:
     Contents: |
       client/build/**
-      selenium-tests/**
       server/**
     TargetFolder: '$(Build.ArtifactStagingDirectory)'
 - task: CopyFiles@2
