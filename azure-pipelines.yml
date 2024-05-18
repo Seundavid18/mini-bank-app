@@ -61,8 +61,10 @@ steps:
     command: 'custom'
     workingDir: 'tests'
     customCommand: 'run test'
+  condition: succeededOrFailed()
 - task: PublishTestResults@2
   inputs:
     testResultsFormat: 'JUnit'
     testResultsFiles: '**/test-results.xml'
     failTaskOnFailedTests: true
+  condition: succeededOrFailed()
