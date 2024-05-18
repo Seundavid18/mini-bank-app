@@ -29,12 +29,23 @@ steps:
   inputs:
     command: 'install'
     workingDir: 'tests'
+- task: SonarCloudPrepare@1
+  inputs:
+    SonarCloud: 'SonarCloud'
+    organization: 'mini-bank-app'
+    scannerMode: 'MSBuild'
+    projectKey: 'mini-bank-app_mini-bank-app'
+    projectName: 'mini-bank-app'
 - task: Npm@1
   displayName: 'NPM Run Build'
   inputs:
     command: 'custom'
     workingDir: 'client'
     customCommand: 'run build'
+- task: SonarCloudAnalyze@1
+- task: SonarCloudPublish@1
+  inputs:
+    pollingTimeoutSec: '300'
 - task: CopyFiles@2
   displayName: 'Copy Client and Server Files'
   inputs:
@@ -71,3 +82,4 @@ steps:
 - task: PublishCodeCoverageResults@2
   inputs:
     summaryFileLocation: '**/*coverage.xml'
+
