@@ -39,7 +39,7 @@ steps:
   inputs:
     SonarCloud: 'SonarCloud'
     organization: 'mini-bank-app'
-    scannerMode: 'MSBuild'
+    scannerMode: 'CLI'
     projectKey: 'mini-bank-app_mini-bank-app'
     projectName: 'mini-bank-app'
 - task: SonarCloudAnalyze@1
