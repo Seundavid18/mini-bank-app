@@ -29,6 +29,12 @@ steps:
   inputs:
     command: 'install'
     workingDir: 'tests'
+- task: Npm@1
+  displayName: 'NPM Run Build'
+  inputs:
+    command: 'custom'
+    workingDir: 'client'
+    customCommand: 'run build'
 - task: SonarCloudPrepare@1
   inputs:
     SonarCloud: 'SonarCloud'
@@ -36,12 +42,6 @@ steps:
     scannerMode: 'MSBuild'
     projectKey: 'mini-bank-app_mini-bank-app'
     projectName: 'mini-bank-app'
-- task: Npm@1
-  displayName: 'NPM Run Build'
-  inputs:
-    command: 'custom'
-    workingDir: 'client'
-    customCommand: 'run build'
 - task: SonarCloudAnalyze@1
 - task: SonarCloudPublish@1
   inputs:
