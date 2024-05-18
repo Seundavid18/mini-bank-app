@@ -55,3 +55,9 @@ steps:
     PathtoPublish: '$(Build.ArtifactStagingDirectory)'
     ArtifactName: 'release'
     publishLocation: 'Container'
+- task: Npm@1
+  displayName: Unit tests
+  inputs:
+    command: 'custom'
+    workingDir: 'tests'
+    customCommand: 'run test'
