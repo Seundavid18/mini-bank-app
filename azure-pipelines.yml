@@ -40,7 +40,7 @@ steps:
     SonarCloud: 'SonarCloud'
     organization: 'mini-bank-app'
     scannerMode: 'CLI'
-    projectKey: 'mini-bank-app_mini-bank-app'
+    projectKey: 'mini-bank-app'
     projectName: 'mini-bank-app'
 - task: SonarCloudAnalyze@1
 - task: SonarCloudPublish@1
