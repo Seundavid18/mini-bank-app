@@ -25,23 +25,28 @@ steps:
     command: 'install'
     workingDir: 'server'
 - task: Npm@1
+  displayName: 'Install NPM in Test'
+  inputs:
+    command: 'install'
+    workingDir: 'tests'
+- task: Npm@1
   displayName: 'NPM Run Build'
   inputs:
     command: 'custom'
     workingDir: 'client'
     customCommand: 'run build'
 - task: CopyFiles@2
-  displayName: 'Copy Files'
+  displayName: 'Copy Client and Server Files'
   inputs:
     Contents: |
       client/build/**
       server/**
     TargetFolder: '$(Build.ArtifactStagingDirectory)'
 - task: CopyFiles@2
-  displayName: 'Copy Files'
+  displayName: 'Copy Tests Files'
   inputs:
     Contents: |
-      selenium-tests/**
+      tests/**
       !node_modules/**
     TargetFolder: '$(Build.ArtifactStagingDirectory)'
 - task: PublishBuildArtifacts@1

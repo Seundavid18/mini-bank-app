@@ -47,28 +47,30 @@ export default function Login() {
                     }
                         <div className="row mx-auto justify-content-center align-items-center flex-column ">
                                         <form onSubmit={handleSubmit}>
-                                            <div className="loginForm" id='email'>
+                                            <div className="loginForm">
                                             <label className="mb-2 form-font fs-6">Email Address</label>
                                             <input 
                                             className="formInput mb-4" 
                                             type="text"   
+                                            id='email'
                                             placeholder="Enter your Email Address" 
                                             required
                                             ref={userRef}
                                             />
                                             </div>
 
-                                            <div className="loginForm" id='password'>
+                                            <div className="loginForm">
                                             <label class="mb-2 form-font fs-6">Password</label>
                                             <input 
                                             className="formInput mb-4" 
                                             type="password"   
+                                            id='password'
                                             placeholder="Enter your password" 
                                             required
                                             ref={passwordRef}
                                             />
                                             </div>                                   
-                                            <button type="submit" className='loginButton mb-4' disabled={isFetching}>
+                                            <button type="submit" className='loginButton mb-4' id='signInBtn' disabled={isFetching}>
                                               {isFetching ? (
                                                 <CircularProgress size={18} className="mt-1"/>
                                               )  : ( 
