@@ -46,7 +46,7 @@ steps:
     cliSources: '.'
     extraProperties: |
       sonar.verbose=true
-      sonar.javascript.lcov.reportPaths: 'tests/coverage/lcov.info'
+      sonar.javascript.lcov.reportPaths: '**/coverage/lcov.info'
       sonar.exclusions=**/*.flow
 - task: SonarCloudAnalyze@1
 - task: SonarCloudPublish@1
@@ -86,6 +86,7 @@ steps:
     failTaskOnFailedTests: true
   condition: succeededOrFailed()
 - task: PublishCodeCoverageResults@2
+  displayName: 'Build code coverage report'
   inputs:
-    summaryFileLocation: 'tests/coverage/cobertura-coverage.xml'
+    summaryFileLocation: '$(System.DefaultWorkingDirectory)/**/*coverage.xml'
 
