@@ -89,4 +89,5 @@ steps:
   displayName: 'Build code coverage report'
   inputs:
     summaryFileLocation: '$(System.DefaultWorkingDirectory)/**/*coverage.xml'
+    pathToSources: '$(System.DefaultWorkingDirectory)/**/coverage'
 
