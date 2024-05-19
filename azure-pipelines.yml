@@ -68,3 +68,6 @@ steps:
     testResultsFiles: '**/test-results.xml'
     failTaskOnFailedTests: true
   condition: succeededOrFailed()
+- task: PublishCodeCoverageResults@2
+  inputs:
+    summaryFileLocation: '**/*coverage.xml'
