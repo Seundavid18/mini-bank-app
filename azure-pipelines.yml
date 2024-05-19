@@ -35,6 +35,16 @@ steps:
     command: 'custom'
     workingDir: 'client'
     customCommand: 'run build'
+- task: SonarCloudPrepare@1
+  inputs:
+    SonarCloud: 'SonarCloud'
+    organization: 'mini-bank-app'
+    scannerMode: 'CLI'
+    configFile: sonar-project.properties
+- task: SonarCloudAnalyze@1
+- task: SonarCloudPublish@1
+  inputs:
+    pollingTimeoutSec: '300'
 - task: CopyFiles@2
   displayName: 'Copy Client and Server Files'
   inputs:
@@ -71,3 +81,4 @@ steps:
 - task: PublishCodeCoverageResults@2
   inputs:
     summaryFileLocation: '**/*coverage.xml'
+
