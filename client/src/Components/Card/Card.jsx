@@ -41,7 +41,7 @@ export default function Card() {
             </div>
             <div className='mt-4'>
               <h6 className='holders'>Account Number</h6>
-              <span className='holders-name'>{user.accountNumber}</span>
+              <span className='holders-name' id='holders-num'>{user.accountNumber}</span>
             </div>
           </div>
         </div>
