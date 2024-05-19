@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuites name="Mocha Tests" time="0.178" tests="2" failures="0">
-  <testsuite name="Root Suite" timestamp="2024-05-19T07:27:56" tests="0" time="0.000" failures="0">
+<testsuites name="Mocha Tests" time="0.400" tests="2" failures="0">
+  <testsuite name="Root Suite" timestamp="2024-05-19T07:46:36" tests="0" time="0.000" failures="0">
   </testsuite>
-  <testsuite name="Login test" timestamp="2024-05-19T07:27:56" tests="1" file="/Users/user/Documents/mini-bank-app/tests/test/login.test.js" time="0.101" failures="0">
-    <testcase name="Login test Test the login page" time="0.087" classname="Test the login page">
+  <testsuite name="Login test" timestamp="2024-05-19T07:46:36" tests="1" file="/Users/user/Documents/mini-bank-app/tests/test/login.test.js" time="0.225" failures="0">
+    <testcase name="Login test Test the login page" time="0.193" classname="Test the login page">
     </testcase>
   </testsuite>
-  <testsuite name="Transfer test" timestamp="2024-05-19T07:27:56" tests="1" file="/Users/user/Documents/mini-bank-app/tests/test/transfer.test.js" time="0.076" failures="0">
-    <testcase name="Transfer test Test a transfer transaction" time="0.072" classname="Test a transfer transaction">
+  <testsuite name="Transfer test" timestamp="2024-05-19T07:46:36" tests="1" file="/Users/user/Documents/mini-bank-app/tests/test/transfer.test.js" time="0.173" failures="0">
+    <testcase name="Transfer test Test a transfer transaction" time="0.146" classname="Test a transfer transaction">
     </testcase>
   </testsuite>
 </testsuites>
