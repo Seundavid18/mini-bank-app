@@ -27,16 +27,15 @@ describe("Login test", function() {
         var sign_in = driver.findElement(By.xpath('//button[text()="Sign In"]'));
         sign_in.click();
     
-        // //Assert that the heading "CHASE-BANK is present"
-        // var home_page_heading = driver.findElement(By.xpath('//span[text()="292676"]'));
-        // expect(home_page_heading.isDisplayed).to.equal("292676");
-
-        //Wait some time to observe result
-        this.timeout(3000);
+        //Assert that the heading account number is present"
+        var home_page_heading = driver.findElement(By.xpath('//span[text()="292676"]'));
+        assert(home_page_heading.isDisplayed('Expected heading "292676" not found'));
 
         done();
 
-    }).timeout(10000);
+        // Close the browser
+        driver.quit();
 
+    }).timeout(10000);
 
 });

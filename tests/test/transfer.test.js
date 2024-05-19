@@ -56,13 +56,13 @@ describe("Transfer test", function() {
         transfer_btn.click(); 
 
         // //Assert that the heading "CHASE-BANK is present"
-        // var transfer_msg = driver.findElement(By.xpath('//h4[text()="Jsus"]'));
-        // expect(transfer_msg).to.equal('Jsus')
-
-        //Wait some time to observe result
-        this.timeout(5000);
+        var home_page_heading = driver.findElement(By.xpath('//h4[text()="Jsus"]'));
+        assert(home_page_heading.isDisplayed('Expected heading "Jsus" not found'));
 
         done();
+
+        // Close the browser
+        driver.quit();
 
     }).timeout(10000)
 

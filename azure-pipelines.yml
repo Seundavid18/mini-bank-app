@@ -47,7 +47,7 @@ steps:
   inputs:
     Contents: |
       tests/**
-      !node_modules/**
+      !tests/node_modules/**
     TargetFolder: '$(Build.ArtifactStagingDirectory)'
 - task: PublishBuildArtifacts@1
   displayName: 'Publish Artifacts'
