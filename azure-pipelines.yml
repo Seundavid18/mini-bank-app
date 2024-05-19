@@ -83,5 +83,5 @@ steps:
   condition: succeededOrFailed()
 - task: PublishCodeCoverageResults@2
   inputs:
-    summaryFileLocation: '**/*coverage.xml'
+    summaryFileLocation: 'tests/coverage/cobertura-coverage.xml'
 
