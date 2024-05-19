@@ -37,10 +37,13 @@ steps:
     customCommand: 'run build'
 - task: SonarCloudPrepare@1
   inputs:
-    SonarCloud: 'SonarCloud'
+    SonarCloud: 'Sonarcloud'
     organization: 'mini-bank-app'
     scannerMode: 'CLI'
-    configFile: sonar-project.properties
+    configMode: 'manual'
+    cliProjectKey: 'mini-bank-app_mini-bank-app'
+    cliProjectName: 'mini-bank-app'
+    cliSources: '.'
 - task: SonarCloudAnalyze@1
 - task: SonarCloudPublish@1
   inputs:
