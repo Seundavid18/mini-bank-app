@@ -19,7 +19,7 @@ export default function NavbarDesktop() {
 
   return (
     <div className='col nav-card'>
-      <h4 className='bank-name mt-4'><SiStarlingbank color='#2c5da9' size={28} className="ms-3 mt-1 me-3"/>CHASE-BANK</h4>
+      <h4 className='bank-name mt-4' id='chase-bank'><SiStarlingbank color='#2c5da9' size={28} className="ms-3 mt-1 me-3"/>CHASE-BANK</h4>
       <div>
         <hr />
 

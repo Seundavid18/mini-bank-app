@@ -1,13 +1,2 @@
-# minibankapp
-
-> A simple fictitious banking application API
-
-## Features
-- Create an account
-- Authorization for all transactions with a PIN
-- Cash deposit
-- Transfer
-- you can view transaction history
-- send email alert for login and all transactions
-
-[Here is a link to the documentation](https://documenter.getpostman.com/view/20496357/VUqpscSa)
+# Mini-bank-app
+[![Build Status](https://dev.azure.com/preciousseun84/Mini-bank-app/_apis/build/status%2Fmini-bank-app?branchName=main)](https://dev.azure.com/preciousseun84/Mini-bank-app/_build/latest?definitionId=11&branchName=main)

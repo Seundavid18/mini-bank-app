@@ -98,7 +98,7 @@ export default function Transfer() {
                 <div className="d-flex mx-auto justify-content-center align-items-center">
                   <BsCheckCircleFill size={60} color="#65e965"/>
                 </div>
-                <h4 className='text-center d-flex justify-content-center align-items-center successMsg mt-2'>{successMsg}</h4>
+                <h4 className='text-center d-flex justify-content-center align-items-center successMsg mt-2' id='succMsg'>{successMsg}</h4>
               </div>
             ) : (
               errorMsg && 
@@ -112,22 +112,22 @@ export default function Transfer() {
               <form id="addform" onSubmit={handleSubmit}>
                   <div className="mb-3">
                       <label className='modal-label'>Account Number</label>
-                      <input type="number" name="acc" id="addtask" className="form-control" required onChange={handleAccount} />
+                      <input type="number" name="acc" id="addnum" className="form-control" required onChange={handleAccount} />
                   </div>
                   <div className="mb-3">
                       <label className='modal-label'>Beneficiary Name</label>
-                      <input type="text" name="acc" id="addtask" className="form-control" required onChange={handlefullName} />
+                      <input type="text" name="acc" id="addname" className="form-control" required onChange={handlefullName} />
                   </div>
                   <div className="mb-3">
                       <label className='modal-label'>Amount</label>
-                      <input type="number" name="acc" id="addtask" className="form-control" required onChange={handleAmount} />
+                      <input type="number" name="acc" id="addamt" className="form-control" required onChange={handleAmount} />
                   </div>
                   <div className="mb-3">
                       <label className='modal-label'>Pin</label>
-                      <input type="password" name="acc" id="addtask" className="form-control" required onChange={handlePin} />
+                      <input type="password" name="acc" id='addpin' className="form-control" required onChange={handlePin} />
                   </div>
                   <div className='d-flex justify-content-center'>
-                    <button className='tranferSubmit mt-3' type='submit' disabled={loading}>
+                    <button className='tranferSubmit mt-3' type='submit' id='transferbtn' disabled={loading}>
                       {loading ? (
                         <CircularProgress size={18} className="mt-1"/>
                         ) : (

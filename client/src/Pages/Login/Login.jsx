@@ -52,6 +52,7 @@ export default function Login() {
                                             <input 
                                             className="formInput mb-4" 
                                             type="text"   
+                                            id='email'
                                             placeholder="Enter your Email Address" 
                                             required
                                             ref={userRef}
@@ -63,12 +64,13 @@ export default function Login() {
                                             <input 
                                             className="formInput mb-4" 
                                             type="password"   
+                                            id='password'
                                             placeholder="Enter your password" 
                                             required
                                             ref={passwordRef}
                                             />
                                             </div>                                   
-                                            <button type="submit" className='loginButton mb-4' disabled={isFetching}>
+                                            <button type="submit" className='loginButton mb-4' id='signInBtn' disabled={isFetching}>
                                               {isFetching ? (
                                                 <CircularProgress size={18} className="mt-1"/>
                                               )  : ( 
