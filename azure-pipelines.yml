@@ -44,9 +44,10 @@ steps:
     cliProjectKey: 'mini-bank-app_mini-bank-app'
     cliProjectName: 'mini-bank-app'
     cliSources: '.'
-    sonar.javascript.lcov.reportPaths: 'tests/coverage/lcov.info'
     extraProperties: |
-      sonar.exclusions=tests/node_modules/*
+      sonar.verbose=true
+      sonar.javascript.lcov.reportPaths: 'tests/coverage/lcov.info'
+      sonar.exclusions=**/*.flow
 - task: SonarCloudAnalyze@1
 - task: SonarCloudPublish@1
   inputs:
