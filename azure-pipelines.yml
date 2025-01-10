@@ -22,13 +22,11 @@ steps:
 - checkout: self
   fetchDepth: 0
 
-# Install GitVersion (Ensuring it's installed before running it)
+# Install GitVersion
 - task: UseDotNet@2
   displayName: "Install GitVersion"
   inputs:
-    packageType: 'sdk'
     version: '5.x'
-    installationPath: $(Agent.ToolsDirectory)/dotnet
 
 # Check if GitVersion is installed correctly
 - script: |
