@@ -26,7 +26,16 @@ steps:
 - task: UseDotNet@2
   displayName: "Install GitVersion"
   inputs:
+    packageType: 'sdk'
     version: '5.x'
+    installationPath: $(Agent.ToolsDirectory)/dotnet
+
+# Install jq tool
+- script: |
+    echo "Installing jq..."
+    sudo apt-get update
+    sudo apt-get install -y jq
+  displayName: 'Install jq'
 
 # Run GitVersion and capture output in JSON format
 - script: |
@@ -34,7 +43,7 @@ steps:
     gitversion /output json /config gitversion.yml > gitversion_output.json
     cat gitversion_output.json
   displayName: 'Run GitVersion and capture output'
-  
+
 # Extract version from GitVersion output
 - script: |
     echo "Extracting version from GitVersion output..."
