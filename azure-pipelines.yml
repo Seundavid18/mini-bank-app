@@ -21,34 +21,27 @@ steps:
 # Checkout repository with full history
 - checkout: self
   fetchDepth: 0
+
 # Install GitVersion
 - task: UseDotNet@2
   displayName: "Install GitVersion"
   inputs:
     version: '5.x'
 
-# Run GitVersion
-- task: gitversion/setup@3
-  displayName: "Setup GitVersion"
-  inputs:
-    versionSpec: '5.x'
-
-- task: gitversion/execute@3
-  displayName: "Run GitVersion"
-  inputs:
-    useConfigFile: true
-    configFilePath: ./gitversion.yml
-    script: |
-    dotnet-gitversion /config gitversion.yml /output json > gitversion.json
-    if [ $? -ne 0 ]; then
-      echo "GitVersion failed. Check the configuration or repository state."
-      cat gitversion.json
-      exit 1
-    fi
-
-    # Parse JSON
-    FullSemVer=$(jq -r '.FullSemVer' gitversion.json)
-    echo "##vso[task.setvariable variable=FULL_VERSION]$FullSemVer"
+# Run GitVersion and capture output in JSON format
+- script: |
+    echo "Running GitVersion..."
+    gitversion /output json /config gitversion.yml > gitversion_output.json
+    cat gitversion_output.json
+  displayName: 'Run GitVersion and capture output'
+  
+# Extract version from GitVersion output
+- script: |
+    echo "Extracting version from GitVersion output..."
+    VERSION=$(cat gitversion_output.json | jq -r .FullSemVer)  # Extract FullSemVer
+    echo "##vso[task.setvariable variable=FULL_VERSION]$VERSION"  # Set as pipeline variable
+    echo "Computed version: $VERSION"
+  displayName: 'Extract and set version as pipeline variable'
 
 # Apply Logic
 - script: |
@@ -77,17 +70,6 @@ steps:
     # Export version as pipeline variable
     echo "##vso[task.setvariable variable=FULL_VERSION]$fullVersion"
   displayName: "Compute Version Based on Parameter"
-
-# Apply Tag
-- script: |
-    echo "Applying tag $(FULL_VERSION) to the current commit."
-    git config user.name "Azure DevOps"
-    git config user.email "devops@example.com"
-    git tag -a "$(FULL_VERSION)" -m "Version $(FULL_VERSION)"
-    git push origin "$(FULL_VERSION)"
-  displayName: "Apply Git Tag"
-  env:
-    GIT_CREDENTIALS: $(System.AccessToken)  # Ensure access to the repository
 
 # Use Computed Version
 - script: |
