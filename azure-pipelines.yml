@@ -38,7 +38,17 @@ steps:
   inputs:
     useConfigFile: true
     configFilePath: ./gitversion.yml
-    outputType: 'json'
+    script: |
+    dotnet-gitversion /config gitversion.yml /output json > gitversion.json
+    if [ $? -ne 0 ]; then
+      echo "GitVersion failed. Check the configuration or repository state."
+      cat gitversion.json
+      exit 1
+    fi
+
+    # Parse JSON
+    FullSemVer=$(jq -r '.FullSemVer' gitversion.json)
+    echo "##vso[task.setvariable variable=FULL_VERSION]$FullSemVer"
 
 # Apply Logic
 - script: |
