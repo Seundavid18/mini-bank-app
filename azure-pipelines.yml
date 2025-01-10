@@ -1,8 +1,3 @@
-# Node.js with React
-# Build a Node.js project that uses React.
-# Add steps that analyze code, save build artifacts, deploy, and more:
-# https://docs.microsoft.com/azure/devops/pipelines/languages/javascript
-
 trigger:
 - main
 
@@ -23,7 +18,7 @@ variables:
   PatchVersion: "0"         # Default patch version
 
 steps:
-#  Install GitVersion
+# Install GitVersion
 - task: UseDotNet@2
   displayName: "Install GitVersion"
   inputs:
@@ -46,16 +41,16 @@ steps:
     echo "Selected versioning scheme: ${{ parameters.versioningScheme }}"
 
     # Initialize variables
-    majorMinor="${{ variables.MajorMinorVersion }}"
-    patch="${{ variables.PatchVersion }}"
+    majorMinor="$(MajorMinorVersion)"
+    patch="$(PatchVersion)"
 
-    if [[ "${{ parameters.versioningScheme }}" == "main-patch" && "$(Build.SourceBranchName)" == "main" ]]; then
+    if [ "${{ parameters.versioningScheme }}" == "main-patch" ] && [ "$BUILD_SOURCEBRANCHNAME" == "main" ]; then
       echo "Incrementing patch version for main branch."
       patch=$((patch + 1))
-    elif [[ "${{ parameters.versioningScheme }}" == "release-patch" && "$(Build.SourceBranchName)" =~ ^release.* ]]; then
+    elif [ "${{ parameters.versioningScheme }}" == "release-patch" ] && [[ "$BUILD_SOURCEBRANCHNAME" =~ ^release.* ]]; then
       echo "Incrementing patch version for release branch."
       patch=$((patch + 1))
-    elif [[ "${{ parameters.versioningScheme }}" == "manual" ]]; then
+    elif [ "${{ parameters.versioningScheme }}" == "manual" ]; then
       echo "Using manual major.minor.patch versioning. No auto-increment."
     else
       echo "No patch increment applied."
@@ -85,31 +80,39 @@ steps:
     echo "Building artifacts with version: $(FULL_VERSION)"
   displayName: "Use Computed Version"
 
+# Install Node.js and NPM
 - task: NodeTool@0
   inputs:
     versionSpec: '20.x'
   displayName: 'Install Node.js'
+
+# NPM Install Steps
 - task: Npm@1
   displayName: 'Install NPM in Client'
   inputs:
     command: 'install'
     workingDir: 'client'
+
 - task: Npm@1
   displayName: 'Install NPM in Server'
   inputs:
     command: 'install'
     workingDir: 'server'
+
 - task: Npm@1
   displayName: 'Install NPM in Test'
   inputs:
     command: 'install'
     workingDir: 'tests'
+
 - task: Npm@1
   displayName: 'NPM Run Build'
   inputs:
     command: 'custom'
     workingDir: 'client'
     customCommand: 'run build'
+
+# SonarCloud Analysis
 - task: SonarCloudPrepare@1
   inputs:
     SonarCloud: 'Sonarcloud'
@@ -123,10 +126,14 @@ steps:
       sonar.verbose=true
       sonar.javascript.lcov.reportPaths: '**/coverage/lcov.info'
       sonar.exclusions=**/*.flow
+
 - task: SonarCloudAnalyze@1
+
 - task: SonarCloudPublish@1
   inputs:
     pollingTimeoutSec: '300'
+
+# Copy Files
 - task: CopyFiles@2
   displayName: 'Copy Client and Server Files'
   inputs:
@@ -134,6 +141,7 @@ steps:
       client/build/**
       server/**
     TargetFolder: '$(Build.ArtifactStagingDirectory)'
+
 - task: CopyFiles@2
   displayName: 'Copy Tests Files'
   inputs:
@@ -141,12 +149,16 @@ steps:
       tests/**
       !tests/node_modules/**
     TargetFolder: '$(Build.ArtifactStagingDirectory)'
+
+# Publish Build Artifacts
 - task: PublishBuildArtifacts@1
   displayName: 'Publish Artifacts'
   inputs:
     PathtoPublish: '$(Build.ArtifactStagingDirectory)'
     ArtifactName: 'release'
     publishLocation: 'Container'
+
+# Run Unit Tests
 - task: Npm@1
   displayName: Unit tests
   inputs:
@@ -154,21 +166,24 @@ steps:
     workingDir: 'tests'
     customCommand: 'run test'
   condition: succeededOrFailed()
+
 - task: PublishTestResults@2
+  displayName: 'Publish Test Results'
   inputs:
     testResultsFormat: 'JUnit'
     testResultsFiles: '**/test-results.xml'
     failTaskOnFailedTests: true
   condition: succeededOrFailed()
+
 - task: Npm@1
   displayName: 'NPM install NYC in Test'
   inputs:
     command: 'custom'
     workingDir: 'tests'
     customCommand: 'install --save-dev nyc'
+
 - task: PublishCodeCoverageResults@2
   displayName: 'Build code coverage report'
   inputs:
     codeCoverageTool: Cobertura
     summaryFileLocation: '$(System.DefaultWorkingDirectory)/coverage/cobertura-coverage.xml'
-
