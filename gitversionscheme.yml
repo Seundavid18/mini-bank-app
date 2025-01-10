@@ -1,0 +1,75 @@
+parameters:
+  - name: versioningScheme
+    type: string
+    default: "main-patch"
+    values:
+      - main-patch       # Increment patch version when merged to main
+      - release-patch    # Increment patch version when merged to release branch
+      - manual           # Manual major.minor.patch versioning
+
+variables:
+  MajorMinorVersion: "1.2"  # Manually set major.minor version
+  PatchVersion: "0"         # Default patch version
+
+steps:
+# Install GitVersion
+- task: UseDotNet@2
+  displayName: "Install GitVersion"
+  inputs:
+    version: 'latest'
+
+# Run GitVersion
+- task: gitversion/setup@0
+  displayName: "Setup GitVersion"
+  inputs:
+    versionSpec: '5.x'
+
+- task: gitversion/execute@0
+  displayName: "Run GitVersion"
+  inputs:
+    useConfigFile: true
+    configFilePath: ./gitversion.yml
+
+# Apply Logic
+- script: |
+    echo "Selected versioning scheme: ${{ parameters.versioningScheme }}"
+
+    # Initialize variables
+    majorMinor="${{ variables.MajorMinorVersion }}"
+    patch="${{ variables.PatchVersion }}"
+
+    if [[ "${{ parameters.versioningScheme }}" == "main-patch" && "$(Build.SourceBranchName)" == "main" ]]; then
+      echo "Incrementing patch version for main branch."
+      patch=$((patch + 1))
+    elif [[ "${{ parameters.versioningScheme }}" == "release-patch" && "$(Build.SourceBranchName)" =~ ^release.* ]]; then
+      echo "Incrementing patch version for release branch."
+      patch=$((patch + 1))
+    elif [[ "${{ parameters.versioningScheme }}" == "manual" ]]; then
+      echo "Using manual major.minor.patch versioning. No auto-increment."
+    else
+      echo "No patch increment applied."
+    fi
+
+    # Combine major.minor and updated patch
+    fullVersion="${majorMinor}.${patch}"
+    echo "Computed version: $fullVersion"
+
+    # Export version as pipeline variable
+    echo "##vso[task.setvariable variable=FULL_VERSION]$fullVersion"
+  displayName: "Compute Version Based on Parameter"
+
+# Apply Tag
+- script: |
+    echo "Applying tag $(FULL_VERSION) to the current commit."
+    git config user.name "Azure DevOps"
+    git config user.email "devops@example.com"
+    git tag -a "$(FULL_VERSION)" -m "Version $(FULL_VERSION)"
+    git push origin "$(FULL_VERSION)"
+  displayName: "Apply Git Tag"
+  env:
+    GIT_CREDENTIALS: $(System.AccessToken)  # Ensure access to the repository
+
+# Use Computed Version
+- script: |
+    echo "Building artifacts with version: $(FULL_VERSION)"
+  displayName: "Use Computed Version"
