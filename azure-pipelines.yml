@@ -25,12 +25,12 @@ steps:
     version: 'latest'
 
 # Run GitVersion
-- task: gitversion/setup@0
+- task: gitversion/setup@3
   displayName: "Setup GitVersion"
   inputs:
     versionSpec: '5.x'
 
-- task: gitversion/execute@0
+- task: gitversion/execute@3
   displayName: "Run GitVersion"
   inputs:
     useConfigFile: true
