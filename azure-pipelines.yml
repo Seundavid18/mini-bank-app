@@ -38,6 +38,7 @@ steps:
   inputs:
     useConfigFile: true
     configFilePath: ./gitversion.yml
+    outputType: 'json'
 
 # Apply Logic
 - script: |
