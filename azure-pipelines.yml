@@ -18,6 +18,9 @@ variables:
   PatchVersion: "0"         # Default patch version
 
 steps:
+# Checkout repository with full history
+- checkout: self
+  fetchDepth: 0
 # Install GitVersion
 - task: UseDotNet@2
   displayName: "Install GitVersion"
