@@ -22,7 +22,7 @@ steps:
 - checkout: self
   fetchDepth: 0
 
-# Install GitVersion
+# Install GitVersion (Ensuring it's installed before running it)
 - task: UseDotNet@2
   displayName: "Install GitVersion"
   inputs:
@@ -30,7 +30,13 @@ steps:
     version: '5.x'
     installationPath: $(Agent.ToolsDirectory)/dotnet
 
-# Install jq tool
+# Check if GitVersion is installed correctly
+- script: |
+    echo "Checking if GitVersion is installed..."
+    gitversion --version
+  displayName: 'Verify GitVersion Installation'
+
+# Install jq tool (Ensure it's installed)
 - script: |
     echo "Installing jq..."
     sudo apt-get update
@@ -41,11 +47,14 @@ steps:
 - script: |
     echo "Running GitVersion..."
     gitversion /output json /config gitversion.yml > gitversion_output.json
+    echo "GitVersion output: "
     cat gitversion_output.json
   displayName: 'Run GitVersion and capture output'
 
-# Extract version from GitVersion output
+# Ensure jq is available and extract version from GitVersion output
 - script: |
+    echo "Checking jq version..."
+    jq --version
     echo "Extracting version from GitVersion output..."
     VERSION=$(cat gitversion_output.json | jq -r .FullSemVer)  # Extract FullSemVer
     echo "##vso[task.setvariable variable=FULL_VERSION]$VERSION"  # Set as pipeline variable
