@@ -22,7 +22,7 @@ steps:
 - task: UseDotNet@2
   displayName: "Install GitVersion"
   inputs:
-    version: 'latest'
+    version: '5.x'
 
 # Run GitVersion
 - task: gitversion/setup@3
