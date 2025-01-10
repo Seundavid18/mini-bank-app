@@ -9,96 +9,166 @@ trigger:
 pool:
   vmImage: ubuntu-latest
 
-extends:
-  template: ./gitversionscheme.yml
+parameters:
+  - name: versioningScheme
+    type: string
+    default: "main-patch"
+    values:
+      - main-patch       # Increment patch version when merged to main
+      - release-patch    # Increment patch version when merged to release branch
+      - manual           # Manual major.minor.patch versioning
 
-jobs:
-  - job: BuildAndAnalyze
-    steps:
-    - task: NodeTool@0
-      inputs:
-        versionSpec: '20.x'
-      displayName: 'Install Node.js'
-    - task: Npm@1
-      displayName: 'Install NPM in Client'
-      inputs:
-        command: 'install'
-        workingDir: 'client'
-    - task: Npm@1
-      displayName: 'Install NPM in Server'
-      inputs:
-        command: 'install'
-        workingDir: 'server'
-    - task: Npm@1
-      displayName: 'Install NPM in Test'
-      inputs:
-        command: 'install'
-        workingDir: 'tests'
-    - task: Npm@1
-      displayName: 'NPM Run Build'
-      inputs:
-        command: 'custom'
-        workingDir: 'client'
-        customCommand: 'run build'
-    - task: SonarCloudPrepare@1
-      inputs:
-        SonarCloud: 'Sonarcloud'
-        organization: 'mini-bank-app'
-        scannerMode: 'CLI'
-        configMode: 'manual'
-        cliProjectKey: 'mini-bank-app_mini-bank-app'
-        cliProjectName: 'mini-bank-app'
-        cliSources: '.'
-        extraProperties: |
-          sonar.verbose=true
-          sonar.javascript.lcov.reportPaths: '**/coverage/lcov.info'
-          sonar.exclusions=**/*.flow
-    - task: SonarCloudAnalyze@1
-    - task: SonarCloudPublish@1
-      inputs:
-        pollingTimeoutSec: '300'
-    - task: CopyFiles@2
-      displayName: 'Copy Client and Server Files'
-      inputs:
-        Contents: |
-          client/build/**
-          server/**
-        TargetFolder: '$(Build.ArtifactStagingDirectory)'
-    - task: CopyFiles@2
-      displayName: 'Copy Tests Files'
-      inputs:
-        Contents: |
-          tests/**
-          !tests/node_modules/**
-        TargetFolder: '$(Build.ArtifactStagingDirectory)'
-    - task: PublishBuildArtifacts@1
-      displayName: 'Publish Artifacts'
-      inputs:
-        PathtoPublish: '$(Build.ArtifactStagingDirectory)'
-        ArtifactName: 'release'
-        publishLocation: 'Container'
-    - task: Npm@1
-      displayName: Unit tests
-      inputs:
-        command: 'custom'
-        workingDir: 'tests'
-        customCommand: 'run test'
-      condition: succeededOrFailed()
-    - task: PublishTestResults@2
-      inputs:
-        testResultsFormat: 'JUnit'
-        testResultsFiles: '**/test-results.xml'
-        failTaskOnFailedTests: true
-      condition: succeededOrFailed()
-    - task: Npm@1
-      displayName: 'NPM install NYC in Test'
-      inputs:
-        command: 'custom'
-        workingDir: 'tests'
-        customCommand: 'install --save-dev nyc'
-    - task: PublishCodeCoverageResults@2
-      displayName: 'Build code coverage report'
-      inputs:
-        codeCoverageTool: Cobertura
-        summaryFileLocation: '$(System.DefaultWorkingDirectory)/coverage/cobertura-coverage.xml'
+variables:
+  MajorMinorVersion: "1.2"  # Manually set major.minor version
+  PatchVersion: "0"         # Default patch version
+
+steps:
+#  Install GitVersion
+- task: UseDotNet@2
+  displayName: "Install GitVersion"
+  inputs:
+    version: 'latest'
+
+# Run GitVersion
+- task: gitversion/setup@0
+  displayName: "Setup GitVersion"
+  inputs:
+    versionSpec: '5.x'
+
+- task: gitversion/execute@0
+  displayName: "Run GitVersion"
+  inputs:
+    useConfigFile: true
+    configFilePath: ./gitversion.yml
+
+# Apply Logic
+- script: |
+    echo "Selected versioning scheme: ${{ parameters.versioningScheme }}"
+
+    # Initialize variables
+    majorMinor="${{ variables.MajorMinorVersion }}"
+    patch="${{ variables.PatchVersion }}"
+
+    if [[ "${{ parameters.versioningScheme }}" == "main-patch" && "$(Build.SourceBranchName)" == "main" ]]; then
+      echo "Incrementing patch version for main branch."
+      patch=$((patch + 1))
+    elif [[ "${{ parameters.versioningScheme }}" == "release-patch" && "$(Build.SourceBranchName)" =~ ^release.* ]]; then
+      echo "Incrementing patch version for release branch."
+      patch=$((patch + 1))
+    elif [[ "${{ parameters.versioningScheme }}" == "manual" ]]; then
+      echo "Using manual major.minor.patch versioning. No auto-increment."
+    else
+      echo "No patch increment applied."
+    fi
+
+    # Combine major.minor and updated patch
+    fullVersion="${majorMinor}.${patch}"
+    echo "Computed version: $fullVersion"
+
+    # Export version as pipeline variable
+    echo "##vso[task.setvariable variable=FULL_VERSION]$fullVersion"
+  displayName: "Compute Version Based on Parameter"
+
+# Apply Tag
+- script: |
+    echo "Applying tag $(FULL_VERSION) to the current commit."
+    git config user.name "Azure DevOps"
+    git config user.email "devops@example.com"
+    git tag -a "$(FULL_VERSION)" -m "Version $(FULL_VERSION)"
+    git push origin "$(FULL_VERSION)"
+  displayName: "Apply Git Tag"
+  env:
+    GIT_CREDENTIALS: $(System.AccessToken)  # Ensure access to the repository
+
+# Use Computed Version
+- script: |
+    echo "Building artifacts with version: $(FULL_VERSION)"
+  displayName: "Use Computed Version"
+
+- task: NodeTool@0
+  inputs:
+    versionSpec: '20.x'
+  displayName: 'Install Node.js'
+- task: Npm@1
+  displayName: 'Install NPM in Client'
+  inputs:
+    command: 'install'
+    workingDir: 'client'
+- task: Npm@1
+  displayName: 'Install NPM in Server'
+  inputs:
+    command: 'install'
+    workingDir: 'server'
+- task: Npm@1
+  displayName: 'Install NPM in Test'
+  inputs:
+    command: 'install'
+    workingDir: 'tests'
+- task: Npm@1
+  displayName: 'NPM Run Build'
+  inputs:
+    command: 'custom'
+    workingDir: 'client'
+    customCommand: 'run build'
+- task: SonarCloudPrepare@1
+  inputs:
+    SonarCloud: 'Sonarcloud'
+    organization: 'mini-bank-app'
+    scannerMode: 'CLI'
+    configMode: 'manual'
+    cliProjectKey: 'mini-bank-app_mini-bank-app'
+    cliProjectName: 'mini-bank-app'
+    cliSources: '.'
+    extraProperties: |
+      sonar.verbose=true
+      sonar.javascript.lcov.reportPaths: '**/coverage/lcov.info'
+      sonar.exclusions=**/*.flow
+- task: SonarCloudAnalyze@1
+- task: SonarCloudPublish@1
+  inputs:
+    pollingTimeoutSec: '300'
+- task: CopyFiles@2
+  displayName: 'Copy Client and Server Files'
+  inputs:
+    Contents: |
+      client/build/**
+      server/**
+    TargetFolder: '$(Build.ArtifactStagingDirectory)'
+- task: CopyFiles@2
+  displayName: 'Copy Tests Files'
+  inputs:
+    Contents: |
+      tests/**
+      !tests/node_modules/**
+    TargetFolder: '$(Build.ArtifactStagingDirectory)'
+- task: PublishBuildArtifacts@1
+  displayName: 'Publish Artifacts'
+  inputs:
+    PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+    ArtifactName: 'release'
+    publishLocation: 'Container'
+- task: Npm@1
+  displayName: Unit tests
+  inputs:
+    command: 'custom'
+    workingDir: 'tests'
+    customCommand: 'run test'
+  condition: succeededOrFailed()
+- task: PublishTestResults@2
+  inputs:
+    testResultsFormat: 'JUnit'
+    testResultsFiles: '**/test-results.xml'
+    failTaskOnFailedTests: true
+  condition: succeededOrFailed()
+- task: Npm@1
+  displayName: 'NPM install NYC in Test'
+  inputs:
+    command: 'custom'
+    workingDir: 'tests'
+    customCommand: 'install --save-dev nyc'
+- task: PublishCodeCoverageResults@2
+  displayName: 'Build code coverage report'
+  inputs:
+    codeCoverageTool: Cobertura
+    summaryFileLocation: '$(System.DefaultWorkingDirectory)/coverage/cobertura-coverage.xml'
 
