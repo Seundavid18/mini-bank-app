@@ -97,11 +97,18 @@ steps:
     # Get the commit message
     COMMIT_MESSAGE="${BUILD_SOURCEVERSIONMESSAGE}"
 
+    # Clean the commit message to avoid breaking the pipeline name format (e.g., remove special characters like quotes)
+    COMMIT_MESSAGE_CLEAN=$(echo "$COMMIT_MESSAGE" | sed 's/[^a-zA-Z0-9 ]//g')
+
     # Get the final version
     FINAL_VERSION="${{ variables.FINAL_VERSION }}"
 
     # Construct the new pipeline name: Build Number . Commit Message . Final Version
-    PIPELINE_NAME="${BUILD_NUMBER} . ${COMMIT_MESSAGE} . v${FINAL_VERSION}"
+    PIPELINE_NAME="${BUILD_NUMBER} . ${COMMIT_MESSAGE_CLEAN} . v${FINAL_VERSION}"
+
+    # Ensure the pipeline name length is valid (if it’s too long, truncate)
+    MAX_LENGTH=128
+    PIPELINE_NAME=$(echo $PIPELINE_NAME | cut -c1-$MAX_LENGTH)
 
     echo "Setting pipeline name to: $PIPELINE_NAME"
     echo "##vso[build.updatebuildnumber]$PIPELINE_NAME"
