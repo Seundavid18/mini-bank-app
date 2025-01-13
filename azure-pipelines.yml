@@ -14,7 +14,7 @@ parameters:
       - manual           # Manual major.minor.patch versioning
 
 variables:
-  MajorMinorVersion: "1.1"  # Manually set major.minor version
+  MajorMinorVersion: "1.0"  # Manually set major.minor version
   PatchVersion: "0"         # Default patch version
 
 steps:
@@ -81,8 +81,8 @@ steps:
       echo "No patch increment applied."
     fi
 
-    # Combine major.minor and updated patch, with pre-release tag
-    finalVersion="${majorMinor}.${patch}-alpha.${patch}"
+    # Combine major.minor and updated patch (No pre-release tag)
+    finalVersion="${majorMinor}.${patch}"
     echo "Final computed version: $finalVersion"
 
     # Export version as pipeline variable
@@ -109,7 +109,6 @@ steps:
     echo "Building artifacts with version: $(FINAL_VERSION)"
   displayName: "Use Computed Version"
 
-# Rest of the steps remain unchanged...
 - task: NodeTool@0
   inputs:
     versionSpec: '20.x'
@@ -146,3 +145,36 @@ steps:
     PathtoPublish: '$(Build.ArtifactStagingDirectory)'
     ArtifactName: 'release-$(FINAL_VERSION)'
     publishLocation: 'Container'
+
+# Run Unit Tests
+- task: Npm@1
+  displayName: Unit tests
+  inputs:
+    command: 'custom'
+    workingDir: 'tests'
+    customCommand: 'run test'
+  condition: succeededOrFailed()
+
+# Publish Unit Tests
+- task: PublishTestResults@2
+  displayName: 'Publish Test Results'
+  inputs:
+    testResultsFormat: 'JUnit'
+    testResultsFiles: '**/test-results.xml'
+    failTaskOnFailedTests: true
+  condition: succeededOrFailed()
+
+# Install NYC in tests
+- task: Npm@1
+  displayName: 'NPM install NYC in Test'
+  inputs:
+    command: 'custom'
+    workingDir: 'tests'
+    customCommand: 'install --save-dev nyc'
+
+# Publish Coverage results
+- task: PublishCodeCoverageResults@2
+  displayName: 'Build code coverage report'
+  inputs:
+    codeCoverageTool: Cobertura
+    summaryFileLocation: '$(System.DefaultWorkingDirectory)/coverage/cobertura-coverage.xml'
