@@ -39,16 +39,24 @@ steps:
     echo "GitVersion output saved."
   displayName: "Run GitVersion"
 
-# Extract version from GitVersion
+# Extract version from GitVersion output without jq
 - script: |
     echo "Extracting version from GitVersion output..."
     if [ -f gitversion_output.json ]; then
-        VERSION=$(cat gitversion_output.json | jq -r '.FullSemVer' || echo "")
+        echo "GitVersion output file content:"
+        cat gitversion_output.json
+
+        # Extract FullSemVer using simple shell commands
+        VERSION=$(grep -Po '"FullSemVer":.*?[^\\]",' gitversion_output.json | sed 's/"FullSemVer":"\([^"]*\)",/\1/' | cut -d'-' -f1)
+        
         if [ -z "$VERSION" ]; then
             echo "Failed to extract version. Invalid or missing FullSemVer."
             exit 1
         fi
-        echo "Computed version: $VERSION"
+        
+        echo "Computed version (without pre-release): $VERSION"
+        
+        # Set the version as a pipeline variable
         echo "##vso[task.setvariable variable=GIT_FULL_VERSION]$VERSION"
     else
         echo "gitversion_output.json not found."
@@ -89,42 +97,33 @@ steps:
     echo "##vso[task.setvariable variable=FINAL_VERSION]$finalVersion"
   displayName: "Compute Version Based on Parameter"
 
-# Update Pipeline Name with Build Number, Commit Message, and Computed Version
+# Update Pipeline Name with Computed Version
 - script: |
-    # Get the build number
-    BUILD_NUMBER=$(Build.BuildId)
+    # Get the default pipeline name (commit message)
+    DEFAULT_NAME="${BUILD_SOURCEVERSIONMESSAGE}"
+    if [ -z "$DEFAULT_NAME" ]; then
+        DEFAULT_NAME="Build"
+    fi
 
-    # Get the commit message
-    COMMIT_MESSAGE="${BUILD_SOURCEVERSIONMESSAGE}"
+    # Append the computed version
+    FINAL_NAME="${DEFAULT_NAME} (v$(FINAL_VERSION))"
 
-    # Clean the commit message to avoid breaking the pipeline name format (e.g., remove special characters like quotes)
-    COMMIT_MESSAGE_CLEAN=$(echo "$COMMIT_MESSAGE" | sed 's/[^a-zA-Z0-9 ]//g')
-
-    # Get the final version
-    FINAL_VERSION="${{ variables.FINAL_VERSION }}"
-
-    # Construct the new pipeline name: Build Number . Commit Message . Final Version
-    PIPELINE_NAME="${BUILD_NUMBER} . ${COMMIT_MESSAGE_CLEAN} . v${FINAL_VERSION}"
-
-    # Ensure the pipeline name length is valid (if it’s too long, truncate)
-    MAX_LENGTH=128
-    PIPELINE_NAME=$(echo $PIPELINE_NAME | cut -c1-$MAX_LENGTH)
-
-    echo "Setting pipeline name to: $PIPELINE_NAME"
-    echo "##vso[build.updatebuildnumber]$PIPELINE_NAME"
-  displayName: "Update Pipeline Name with Build Number, Commit Message, and Final Version"
+    echo "Setting pipeline name to: $FINAL_NAME"
+    echo "##vso[build.updatebuildnumber]$FINAL_NAME"
+  displayName: "Update Pipeline Name with Computed Version"
 
 # Use Computed Version
 - script: |
     echo "Building artifacts with version: $(FINAL_VERSION)"
   displayName: "Use Computed Version"
 
-# Rest of the steps remain unchanged...
+# Install Node.js and NPM
 - task: NodeTool@0
   inputs:
     versionSpec: '20.x'
   displayName: 'Install Node.js'
 
+# NPM Install Steps
 - task: Npm@1
   displayName: 'Install NPM in Client'
   inputs:
@@ -150,6 +149,45 @@ steps:
     workingDir: 'client'
     customCommand: 'run build'
 
+# SonarCloud Analysis
+- task: SonarCloudPrepare@1
+  inputs:
+    SonarCloud: 'Sonarcloud'
+    organization: 'mini-bank-app'
+    scannerMode: 'CLI'
+    configMode: 'manual'
+    cliProjectKey: 'mini-bank-app_mini-bank-app'
+    cliProjectName: 'mini-bank-app'
+    cliSources: '.'
+    extraProperties: |
+      sonar.verbose=true
+      sonar.javascript.lcov.reportPaths: '**/coverage/lcov.info'
+      sonar.exclusions=**/*.flow
+
+- task: SonarCloudAnalyze@1
+
+- task: SonarCloudPublish@1
+  inputs:
+    pollingTimeoutSec: '300'
+
+# Copy Files
+- task: CopyFiles@2
+  displayName: 'Copy Client and Server Files'
+  inputs:
+    Contents: |
+      client/build/**
+      server/**
+    TargetFolder: '$(Build.ArtifactStagingDirectory)'
+
+- task: CopyFiles@2
+  displayName: 'Copy Tests Files'
+  inputs:
+    Contents: |
+      tests/**
+      !tests/node_modules/**
+    TargetFolder: '$(Build.ArtifactStagingDirectory)'
+
+# Publish Build Artifacts
 - task: PublishBuildArtifacts@1
   displayName: 'Publish Artifacts'
   inputs:
