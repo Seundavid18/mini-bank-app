@@ -46,15 +46,22 @@ steps:
         echo "GitVersion output file content:"
         cat gitversion_output.json
 
-        # Extract FullSemVer (including pre-release) using simple shell commands
+        # Extract FullSemVer or fallback to SemVer (which includes pre-release tag)
         VERSION=$(grep -Po '"FullSemVer":.*?[^\\]",' gitversion_output.json | sed 's/"FullSemVer":"\([^"]*\)",/\1/')
         
+        # If FullSemVer is not found, fall back to SemVer (which also includes pre-release)
         if [ -z "$VERSION" ]; then
-            echo "Failed to extract version. Invalid or missing FullSemVer."
+            echo "FullSemVer not found, falling back to SemVer..."
+            VERSION=$(grep -Po '"SemVer":.*?[^\\]",' gitversion_output.json | sed 's/"SemVer":"\([^"]*\)",/\1/')
+        fi
+        
+        # Validate that a version was found
+        if [ -z "$VERSION" ]; then
+            echo "Failed to extract version. Invalid or missing FullSemVer or SemVer."
             exit 1
         fi
         
-        echo "Computed version (with pre-release): $VERSION"
+        echo "Computed version (with pre-release if available): $VERSION"
         
         # Set the version as a pipeline variable
         echo "##vso[task.setvariable variable=FULL_VERSION]$VERSION"
