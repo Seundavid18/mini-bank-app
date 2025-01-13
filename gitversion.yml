@@ -1,7 +1,6 @@
 assembly-versioning-scheme: MajorMinorPatch
 assembly-file-versioning-scheme: MajorMinorPatch
 tag-prefix: '[vV]?'
-version-in-branch-pattern: (?<version>[vV]?\d+(\.\d+)?(\.\d+)?).*
 major-version-bump-message: \+semver:\s?(breaking|major)
 minor-version-bump-message: \+semver:\s?(feature|minor)
 patch-version-bump-message: \+semver:\s?(fix|patch)
@@ -12,12 +11,12 @@ merge-message-formats: {}
 update-build-number: true
 semantic-version-format: Strict
 strategies:
-- Fallback
-- ConfiguredNextVersion
-- MergeMessage
-- TaggedCommit
-- TrackReleaseBranches
-- VersionInBranchName
+  - Fallback
+  - ConfiguredNextVersion
+  - MergeMessage
+  - TaggedCommit
+  - TrackReleaseBranches
+  - VersionInBranchName  # Ensure this is compatible with your GitVersion version
 branches:
   develop:
     mode: ContinuousDelivery
@@ -29,7 +28,7 @@ branches:
     track-merge-message: true
     regex: ^dev(elop)?(ment)?$
     source-branches:
-    - main
+      - main
     is-source-branch-for: []
     tracks-release-branches: true
     is-release-branch: false
@@ -59,7 +58,7 @@ branches:
     track-merge-target: false
     regex: ^releases?[/-](?<BranchName>.+)
     source-branches:
-    - main
+      - main
     is-source-branch-for: []
     tracks-release-branches: false
     is-release-branch: true
@@ -74,10 +73,10 @@ branches:
     track-merge-message: true
     regex: ^features?[/-](?<BranchName>.+)
     source-branches:
-    - develop
-    - main
-    - release
-    - hotfix
+      - develop
+      - main
+      - release
+      - hotfix
     is-source-branch-for: []
     is-main-branch: false
     pre-release-weight: 30000
@@ -89,8 +88,8 @@ branches:
       when-current-commit-tagged: false
     regex: ^hotfix(es)?[/-](?<BranchName>.+)
     source-branches:
-    - main
-    - support
+      - main
+      - support
     is-source-branch-for: []
     is-release-branch: true
     is-main-branch: false
