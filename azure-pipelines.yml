@@ -22,42 +22,39 @@ steps:
 - checkout: self
   fetchDepth: 0
 
-# Install GitVersion
-- task: UseDotNet@2
-  displayName: "Install GitVersion"
-  inputs:
-    version: '5.x'
-
-# Check if GitVersion is installed correctly
+# Install GitVersion using dotnet tool
 - script: |
-    echo "Checking if GitVersion is installed..."
+    echo "Installing GitVersion as a .NET global tool..."
+    dotnet tool install -g GitVersion.Tool --version 5.x
+    echo "Adding GitVersion to PATH..."
+    echo "##vso[task.prependpath]$HOME/.dotnet/tools"
+    echo "Verifying GitVersion installation..."
     gitversion --version
-  displayName: 'Verify GitVersion Installation'
+  displayName: "Install GitVersion"
 
-# Install jq tool (Ensure it's installed)
+# Install jq for JSON parsing
 - script: |
-    echo "Installing jq..."
+    echo "Installing jq for JSON processing..."
     sudo apt-get update
     sudo apt-get install -y jq
-  displayName: 'Install jq'
+    jq --version
+  displayName: "Install jq"
 
 # Run GitVersion and capture output in JSON format
 - script: |
     echo "Running GitVersion..."
     gitversion /output json /config gitversion.yml > gitversion_output.json
-    echo "GitVersion output: "
+    echo "GitVersion output:"
     cat gitversion_output.json
-  displayName: 'Run GitVersion and capture output'
+  displayName: "Run GitVersion"
 
-# Ensure jq is available and extract version from GitVersion output
+# Extract version from GitVersion output
 - script: |
-    echo "Checking jq version..."
-    jq --version
     echo "Extracting version from GitVersion output..."
-    VERSION=$(cat gitversion_output.json | jq -r .FullSemVer)  # Extract FullSemVer
-    echo "##vso[task.setvariable variable=FULL_VERSION]$VERSION"  # Set as pipeline variable
+    VERSION=$(cat gitversion_output.json | jq -r .FullSemVer)
     echo "Computed version: $VERSION"
-  displayName: 'Extract and set version as pipeline variable'
+    echo "##vso[task.setvariable variable=FULL_VERSION]$VERSION"
+  displayName: "Extract and Set Version"
 
 # Apply Logic
 - script: |
