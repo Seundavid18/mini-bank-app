@@ -89,26 +89,30 @@ steps:
     echo "##vso[task.setvariable variable=FINAL_VERSION]$finalVersion"
   displayName: "Compute Version Based on Parameter"
 
-# Update Pipeline Name with Computed Version
+# Update Pipeline Name with Build Number, Commit Message, and Computed Version
 - script: |
-    # Get the default pipeline name (commit message)
-    DEFAULT_NAME="${BUILD_SOURCEVERSIONMESSAGE}"
-    if [ -z "$DEFAULT_NAME" ]; then
-        DEFAULT_NAME="Build"
-    fi
+    # Get the build number
+    BUILD_NUMBER=$(Build.BuildId)
 
-    # Append the computed version
-    FINAL_NAME="${DEFAULT_NAME} (v$(FINAL_VERSION))"
+    # Get the commit message
+    COMMIT_MESSAGE="${BUILD_SOURCEVERSIONMESSAGE}"
 
-    echo "Setting pipeline name to: $FINAL_NAME"
-    echo "##vso[build.updatebuildnumber]$FINAL_NAME"
-  displayName: "Update Pipeline Name with Computed Version"
+    # Get the final version
+    FINAL_VERSION="${{ variables.FINAL_VERSION }}"
+
+    # Construct the new pipeline name: Build Number . Commit Message . Final Version
+    PIPELINE_NAME="${BUILD_NUMBER} . ${COMMIT_MESSAGE} . v${FINAL_VERSION}"
+
+    echo "Setting pipeline name to: $PIPELINE_NAME"
+    echo "##vso[build.updatebuildnumber]$PIPELINE_NAME"
+  displayName: "Update Pipeline Name with Build Number, Commit Message, and Final Version"
 
 # Use Computed Version
 - script: |
     echo "Building artifacts with version: $(FINAL_VERSION)"
   displayName: "Use Computed Version"
 
+# Rest of the steps remain unchanged...
 - task: NodeTool@0
   inputs:
     versionSpec: '20.x'
