@@ -46,16 +46,16 @@ steps:
         echo "GitVersion output file content:"
         cat gitversion_output.json
 
-        # Extract FullSemVer or fallback to SemVer (which includes pre-release tag)
-        VERSION=$(grep -Po '"FullSemVer":.*?[^\\]",' gitversion_output.json | sed 's/"FullSemVer":"\([^"]*\)",/\1/')
-        
+        # Extract FullSemVer directly from JSON (including pre-release)
+        VERSION=$(jq -r '.FullSemVer' gitversion_output.json)
+
         # If FullSemVer is not found, fall back to SemVer (which also includes pre-release)
         if [ -z "$VERSION" ]; then
             echo "FullSemVer not found, falling back to SemVer..."
-            VERSION=$(grep -Po '"SemVer":.*?[^\\]",' gitversion_output.json | sed 's/"SemVer":"\([^"]*\)",/\1/')
+            VERSION=$(jq -r '.SemVer' gitversion_output.json)
         fi
         
-        # Validate that a version was found
+        # Ensure we capture both FullSemVer and SemVer and set the pipeline variable
         if [ -z "$VERSION" ]; then
             echo "Failed to extract version. Invalid or missing FullSemVer or SemVer."
             exit 1
