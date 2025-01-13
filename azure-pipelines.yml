@@ -97,10 +97,20 @@ steps:
 # Update the pipeline name
 - script: |
     echo "Updating pipeline name..."
-    commitMessage=$(git log -1 --pretty=%s | tr -d '\n' | tr -d '\r') # Get the latest commit message
-    sanitizedCommitMessage=$(echo "$commitMessage" | sed 's/[^a-zA-Z0-9._-]/-/g') # Sanitize commit message
+    
+    # Retrieve the latest commit message
+    commitMessage=$(git log -1 --pretty=%s | tr -d '\n' | tr -d '\r')
+    echo "Raw commit message: $commitMessage"
+    
+    # Sanitize the commit message to ensure only valid characters are used
+    sanitizedCommitMessage=$(echo "$commitMessage" | sed 's/[^a-zA-Z0-9._-]/-/g')
+    echo "Sanitized commit message: $sanitizedCommitMessage"
+    
+    # Construct the new build name with Build ID, sanitized commit message, and FULL_VERSION
     buildName="#${{ Build.BuildId }} • $sanitizedCommitMessage ${{ variables.FULL_VERSION }}"
     echo "Computed build name: $buildName"
+    
+    # Update the pipeline build number
     echo "##vso[build.updatebuildnumber]$buildName"
   displayName: "Set Build Name"
 
