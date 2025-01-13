@@ -49,7 +49,7 @@ steps:
             exit 1
         fi
         echo "Computed version: $VERSION"
-        echo "##vso[task.setvariable variable=FULL_VERSION]$VERSION"
+        echo "##vso[task.setvariable variable=GIT_FULL_VERSION]$VERSION"
     else
         echo "gitversion_output.json not found."
         exit 1
@@ -59,12 +59,16 @@ steps:
 # Apply Logic
 - script: |
     echo "Selected versioning scheme: ${{ parameters.versioningScheme }}"
-    fullVersion=$(FULL_VERSION)
 
-    # Initialize variables
-    majorMinor="${fullVersion%.*}"
-    patch="${fullVersion##*.}"
+    # Start with the manually set Major.Minor version
+    majorMinor="${{ variables.MajorMinorVersion }}"
+    echo "Base Major.Minor version: $majorMinor"
 
+    # Extract patch version from GitVersion's FullSemVer
+    gitVersion=$(GIT_FULL_VERSION)
+    patch=$(echo "$gitVersion" | grep -oE '[0-9]+$')
+
+    # Increment patch based on branch and versioning scheme
     if [ "${{ parameters.versioningScheme }}" == "main-patch" ] && [ "$BUILD_SOURCEBRANCHNAME" == "main" ]; then
       echo "Incrementing patch version for main branch."
       patch=$((patch + 1))
@@ -78,11 +82,11 @@ steps:
     fi
 
     # Combine major.minor and updated patch
-    fullVersion="${majorMinor}.${patch}"
-    echo "Final computed version: $fullVersion"
+    finalVersion="${majorMinor}.${patch}"
+    echo "Final computed version: $finalVersion"
 
     # Export version as pipeline variable
-    echo "##vso[task.setvariable variable=FULL_VERSION]$fullVersion"
+    echo "##vso[task.setvariable variable=FULL_VERSION]$finalVersion"
   displayName: "Compute Version Based on Parameter"
 
 # Use Computed Version
