@@ -50,7 +50,8 @@ steps:
 - script: |
     echo "Extracting version from GitVersion output..."
     if [ -f gitversion_output.json ]; then
-        VERSION=$(cat gitversion_output.json | jq -r '.FullSemVer' || echo "")
+        # Extract FullSemVer and split by the hyphen to get the version part before it
+        VERSION=$(cat gitversion_output.json | jq -r '.FullSemVer | split("-")[0]')
         if [ -z "$VERSION" ]; then
             echo "Failed to extract version. Invalid or missing FullSemVer."
             exit 1
