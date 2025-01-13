@@ -172,7 +172,7 @@ steps:
   displayName: 'Publish Artifacts'
   inputs:
     PathtoPublish: '$(Build.ArtifactStagingDirectory)'
-    ArtifactName: 'release'
+    ArtifactName: 'release-$(FULL_VERSION)'
     publishLocation: 'Container'
 
 # Run Unit Tests
