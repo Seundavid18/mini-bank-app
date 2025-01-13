@@ -181,6 +181,7 @@ steps:
     customCommand: 'run test'
   condition: succeededOrFailed()
 
+# Publish Unit Tests
 - task: PublishTestResults@2
   displayName: 'Publish Test Results'
   inputs:
@@ -189,6 +190,7 @@ steps:
     failTaskOnFailedTests: true
   condition: succeededOrFailed()
 
+# Install NYC in tests
 - task: Npm@1
   displayName: 'NPM install NYC in Test'
   inputs:
@@ -196,6 +198,7 @@ steps:
     workingDir: 'tests'
     customCommand: 'install --save-dev nyc'
 
+# Publish Coverage results
 - task: PublishCodeCoverageResults@2
   displayName: 'Build code coverage report'
   inputs:
