@@ -1,3 +1,6 @@
+# Set the pipeline name dynamically
+name: $(Build.DefinitionName)-$(Build.SourceBranchName)-$(FULL_VERSION)
+
 trigger:
 - main
 
@@ -49,14 +52,14 @@ steps:
             exit 1
         fi
         echo "Computed version: $VERSION"
-        echo "##vso[task.setvariable variable=GIT_FULL_VERSION]$VERSION"
+        echo "##vso[task.setvariable variable=FULL_VERSION]$VERSION"
     else
         echo "gitversion_output.json not found."
         exit 1
     fi
   displayName: "Extract Version from GitVersion"
 
-# Apply Logic
+# Compute the final version and set it as a pipeline variable
 - script: |
     echo "Selected versioning scheme: ${{ parameters.versioningScheme }}"
 
@@ -88,6 +91,11 @@ steps:
     # Export version as pipeline variable
     echo "##vso[task.setvariable variable=FULL_VERSION]$finalVersion"
   displayName: "Compute Version Based on Parameter"
+
+# Use the version in a task
+- script: |
+    echo "Pipeline version is: $(FULL_VERSION)"
+  displayName: "Print Computed Version"
 
 # Use Computed Version
 - script: |
