@@ -22,42 +22,33 @@ steps:
 - checkout: self
   fetchDepth: 0
 
-# Install prerequisites (if needed)
-- script: |
-    echo "Installing prerequisites..."
-    sudo apt-get update
-    sudo apt-get install -y wget jq
-  displayName: "Install Prerequisites"
-
 # Download and install GitVersion CLI
 - script: |
     echo "Downloading GitVersion CLI..."
-    wget https://github.com/GitTools/GitVersion/releases/download/5.11.1/gitversion-linux-x64-6.1.0.tar.gz -O gitversion.tar.gz
+    wget https://github.com/GitTools/GitVersion/releases/download/6.1.0/gitversion-linux-x64-5.11.1.tar.gz -O gitversion.tar.gz
     mkdir gitversion
     tar -xzf gitversion.tar.gz -C gitversion
     export PATH="$PATH:$(pwd)/gitversion"
     echo "##vso[task.prependpath]$(pwd)/gitversion"
   displayName: "Install GitVersion CLI"
 
-# Run GitVersion and capture output in JSON
+# Run GitVersion and capture output
 - script: |
     echo "Running GitVersion..."
     ./gitversion/gitversion /output json /config gitversion.yml > gitversion_output.json
     echo "GitVersion output saved."
   displayName: "Run GitVersion"
 
-# Extract version using jq
+# Extract version from GitVersion output without jq
 - script: |
     echo "Extracting version from GitVersion output..."
     if [ -f gitversion_output.json ]; then
-        # Debug: Print the content of gitversion_output.json for troubleshooting
         echo "GitVersion output file content:"
         cat gitversion_output.json
 
-        # Extract FullSemVer and split by the hyphen to get the version part before it
-        VERSION=$(cat gitversion_output.json | jq -r '.FullSemVer | split("-")[0]')
-
-        # Debug: Check if the VERSION was successfully extracted
+        # Extract FullSemVer using simple shell commands
+        VERSION=$(grep -Po '"FullSemVer":.*?[^\\]",' gitversion_output.json | sed 's/"FullSemVer":"\([^"]*\)",/\1/' | cut -d'-' -f1)
+        
         if [ -z "$VERSION" ]; then
             echo "Failed to extract version. Invalid or missing FullSemVer."
             exit 1
