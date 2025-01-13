@@ -22,14 +22,14 @@ steps:
 - checkout: self
   fetchDepth: 0
 
-# Install GitVersion using dotnet tool
+# Install GitVersion as a .NET global tool
 - script: |
     echo "Installing GitVersion as a .NET global tool..."
     dotnet tool install -g GitVersion.Tool --version 5.11.1
     echo "Adding GitVersion to PATH..."
     echo "##vso[task.prependpath]$HOME/.dotnet/tools"
     echo "Verifying GitVersion installation..."
-    gitversion --version
+    dotnet-gitversion --version
   displayName: "Install GitVersion"
 
 # Install jq for JSON parsing
@@ -43,7 +43,7 @@ steps:
 # Run GitVersion and capture output in JSON format
 - script: |
     echo "Running GitVersion..."
-    gitversion /output json /config gitversion.yml > gitversion_output.json
+    dotnet-gitversion /output json /config gitversion.yml > gitversion_output.json
     echo "GitVersion output:"
     cat gitversion_output.json
   displayName: "Run GitVersion"
