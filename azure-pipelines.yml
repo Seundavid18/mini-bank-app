@@ -13,10 +13,6 @@ parameters:
       - release-patch    # Increment patch version when merged to release branch
       - manual           # Manual major.minor.patch versioning
 
-  - name: git_version_directory
-    type: string
-    default: ''  # Directory for GitVersion execution
-
 variables:
   MajorMinorVersion: "1.0"  # Manually set major.minor version
   PatchVersion: "0"         # Default patch version
