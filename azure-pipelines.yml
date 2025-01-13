@@ -42,10 +42,19 @@ steps:
 # Extract version from GitVersion
 - script: |
     echo "Extracting version from GitVersion output..."
-    VERSION=$(cat gitversion_output.json | jq -r .FullSemVer)
-    echo "Computed version: $VERSION"
-    echo "##vso[task.setvariable variable=FULL_VERSION]$VERSION"
-  displayName: "Extract and Set Version"
+    if [ -f gitversion_output.json ]; then
+        VERSION=$(cat gitversion_output.json | jq -r '.FullSemVer' || echo "")
+        if [ -z "$VERSION" ]; then
+            echo "Failed to extract version. Invalid or missing FullSemVer."
+            exit 1
+        fi
+        echo "Computed version: $VERSION"
+        echo "##vso[task.setvariable variable=FULL_VERSION]$VERSION"
+    else
+        echo "gitversion_output.json not found."
+        exit 1
+    fi
+  displayName: "Extract Version from GitVersion"
 
 # Apply Logic
 - script: |
