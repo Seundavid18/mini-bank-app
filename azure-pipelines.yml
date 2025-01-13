@@ -94,6 +94,16 @@ steps:
     echo "Building artifacts with version: $(FULL_VERSION)"
   displayName: "Use Computed Version"
 
+# Update the pipeline name
+- script: |
+    echo "Updating pipeline name..."
+    commitMessage=$(git log -1 --pretty=%s | tr -d '\n' | tr -d '\r') # Get the latest commit message
+    sanitizedCommitMessage=$(echo "$commitMessage" | sed 's/[^a-zA-Z0-9._-]/-/g') # Sanitize commit message
+    buildName="#${{ Build.BuildId }} • $sanitizedCommitMessage ${{ variables.FULL_VERSION }}"
+    echo "Computed build name: $buildName"
+    echo "##vso[build.updatebuildnumber]$buildName"
+  displayName: "Set Build Name"
+
 # Install Node.js and NPM
 - task: NodeTool@0
   inputs:
