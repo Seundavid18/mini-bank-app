@@ -14,7 +14,7 @@ parameters:
       - manual           # Manual major.minor.patch versioning
 
 variables:
-  MajorMinorVersion: "1.2"  # Manually set major.minor version
+  MajorMinorVersion: "1.0"  # Manually set major.minor version
   PatchVersion: "0"         # Default patch version
 
 steps:
@@ -39,22 +39,22 @@ steps:
     echo "GitVersion output saved."
   displayName: "Run GitVersion"
 
-# Extract version from GitVersion output without jq
+# Extract version from GitVersion
 - script: |
     echo "Extracting version from GitVersion output..."
     if [ -f gitversion_output.json ]; then
         echo "GitVersion output file content:"
         cat gitversion_output.json
 
-        # Extract FullSemVer using simple shell commands
-        VERSION=$(grep -Po '"FullSemVer":.*?[^\\]",' gitversion_output.json | sed 's/"FullSemVer":"\([^"]*\)",/\1/' | cut -d'-' -f1)
+        # Extract FullSemVer (including pre-release) using simple shell commands
+        VERSION=$(grep -Po '"FullSemVer":.*?[^\\]",' gitversion_output.json | sed 's/"FullSemVer":"\([^"]*\)",/\1/')
         
         if [ -z "$VERSION" ]; then
             echo "Failed to extract version. Invalid or missing FullSemVer."
             exit 1
         fi
         
-        echo "Computed version (without pre-release): $VERSION"
+        echo "Computed version (with pre-release): $VERSION"
         
         # Set the version as a pipeline variable
         echo "##vso[task.setvariable variable=FULL_VERSION]$VERSION"
