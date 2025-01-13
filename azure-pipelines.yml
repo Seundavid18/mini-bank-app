@@ -13,6 +13,10 @@ parameters:
       - release-patch    # Increment patch version when merged to release branch
       - manual           # Manual major.minor.patch versioning
 
+  - name: git_version_directory
+    type: string
+    default: ''  # Directory for GitVersion execution
+
 variables:
   MajorMinorVersion: "1.0"  # Manually set major.minor version
   PatchVersion: "0"         # Default patch version
@@ -56,7 +60,7 @@ steps:
     fi
   displayName: "Extract Version from GitVersion"
 
-# Apply Logic
+# Apply Logic for Versioning
 - script: |
     echo "Selected versioning scheme: ${{ parameters.versioningScheme }}"
 
@@ -89,28 +93,21 @@ steps:
     echo "##vso[task.setvariable variable=FULL_VERSION]$finalVersion"
   displayName: "Compute Version Based on Parameter"
 
-# Use Computed Version
-- script: |
-    echo "Building artifacts with version: $(FULL_VERSION)"
-  displayName: "Use Computed Version"
-
-# Update the pipeline name
+# Set Build Name with Commit Message and Full Version
 - script: |
     echo "Updating pipeline name..."
     
-    # Retrieve the latest commit message
-    commitMessage=$(git log -1 --pretty=%s | tr -d '\n' | tr -d '\r')
-    echo "Raw commit message: $commitMessage"
+    # Get the latest commit message
+    commitMessage=$(git log -1 --pretty=%s | tr -d '\n' | tr -d '\r') 
     
-    # Sanitize the commit message to ensure only valid characters are used
-    sanitizedCommitMessage=$(echo "$commitMessage" | sed 's/[^a-zA-Z0-9._-]/-/g')
-    echo "Sanitized commit message: $sanitizedCommitMessage"
+    # Sanitize commit message
+    sanitizedCommitMessage=$(echo "$commitMessage" | sed 's/[^a-zA-Z0-9._-]/-/g') 
     
-    # Construct the new build name with Build ID, sanitized commit message, and FULL_VERSION
+    # Combine Build ID, Commit Message, and Full Version
     buildName="#${{ Build.BuildId }} • $sanitizedCommitMessage ${{ variables.FULL_VERSION }}"
     echo "Computed build name: $buildName"
     
-    # Update the pipeline build number
+    # Update build number
     echo "##vso[build.updatebuildnumber]$buildName"
   displayName: "Set Build Name"
 
