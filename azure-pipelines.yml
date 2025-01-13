@@ -195,6 +195,7 @@ steps:
     ArtifactName: 'release-$(FINAL_VERSION)'
     publishLocation: 'Container'
 
+
 # Run Unit Tests
 - task: Npm@1
   displayName: Unit tests
