@@ -99,11 +99,8 @@ steps:
     # Sanitize the commit message
     sanitizedCommitMessage=$(echo "$commitMessage" | sed 's/[^a-zA-Z0-9._-]/-/g')
     
-    # Remove redundant text "update-the-pipeline-name" if it exists in the commit message
-    cleanedCommitMessage=$(echo "$sanitizedCommitMessage" | sed 's/update-the-pipeline-name//g')
-    
-    # Combine Build ID and cleaned Commit Message, and Full Version
-    buildName="#${BUILD_BUILDID} • $cleanedCommitMessage $(FULL_VERSION)"
+    # Combine Build ID and Full Version (exclude redundant commit message at the end)
+    buildName="#${BUILD_BUILDID} • $sanitizedCommitMessage $(FULL_VERSION)"
     echo "Computed build name: $buildName"
     
     # Update the build number
@@ -111,7 +108,6 @@ steps:
   displayName: "Set Build Name"
   env:
     FULL_VERSION: $(FULL_VERSION)  # Pass FULL_VERSION as an environment variable
-
 
 # Install Node.js and NPM
 - task: NodeTool@0
