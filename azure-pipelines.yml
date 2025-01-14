@@ -93,20 +93,21 @@ steps:
 - script: |
     echo "Updating pipeline name..."
     
-    # Get the latest commit message
-    commitMessage=$(git log -1 --pretty=%s | tr -d '\n' | tr -d '\r') 
+    # Retrieve the latest commit message
+    commitMessage=$(git log -1 --pretty=%s | tr -d '\n' | tr -d '\r')
     
-    # Sanitize commit message
-    sanitizedCommitMessage=$(echo "$commitMessage" | sed 's/[^a-zA-Z0-9._-]/-/g') 
+    # Sanitize the commit message
+    sanitizedCommitMessage=$(echo "$commitMessage" | sed 's/[^a-zA-Z0-9._-]/-/g')
     
     # Combine Build ID, Commit Message, and Full Version
-    buildName="#$(Build.BuildId) • $sanitizedCommitMessage $(FINAL_VERSION)"
+    buildName="#${BUILD_BUILDID} • $sanitizedCommitMessage ${FULL_VERSION}"
     echo "Computed build name: $buildName"
     
-    # Update build number
+    # Update the build number
     echo "##vso[build.updatebuildnumber]$buildName"
   displayName: "Set Build Name"
-
+  env:
+    FULL_VERSION: $(FULL_VERSION) 
 
 # Install Node.js and NPM
 - task: NodeTool@0
