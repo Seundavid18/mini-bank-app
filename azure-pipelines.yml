@@ -103,15 +103,14 @@ steps:
     cleanedCommitMessage=$(echo "$sanitizedCommitMessage" | sed 's/update-the-pipeline-name//g')
     
     # Combine Build ID and cleaned Commit Message, and Full Version
-    buildName="#${BUILD_BUILDID} • $cleanedCommitMessage $(FULL_VERSION)"
+    buildName="#${BUILD_BUILDID} • $cleanedCommitMessage • $(FULL_VERSION)"
     echo "Computed build name: $buildName"
     
     # Update the build number
     echo "##vso[build.updatebuildnumber]$buildName"
   displayName: "Set Build Name"
   env:
-    FULL_VERSION: $(FULL_VERSION)  # Pass FULL_VERSION as an environment variable
-
+    FULL_VERSION: $(FULL_VERSION)
 
 # Install Node.js and NPM
 - task: NodeTool@0
