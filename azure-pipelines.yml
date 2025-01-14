@@ -100,12 +100,13 @@ steps:
     sanitizedCommitMessage=$(echo "$commitMessage" | sed 's/[^a-zA-Z0-9._-]/-/g') 
     
     # Combine Build ID, Commit Message, and Full Version
-    buildName="#${{ Build.BuildId }} • $sanitizedCommitMessage ${{ variables.FULL_VERSION }}"
+    buildName="#$(Build.BuildId) • $sanitizedCommitMessage $(FINAL_VERSION)"
     echo "Computed build name: $buildName"
     
     # Update build number
     echo "##vso[build.updatebuildnumber]$buildName"
   displayName: "Set Build Name"
+
 
 # Install Node.js and NPM
 - task: NodeTool@0
