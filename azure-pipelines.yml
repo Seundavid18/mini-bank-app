@@ -1,6 +1,9 @@
 trigger:
-- main
-- release
+  - main
+  - release
+
+pool:
+  vmImage: ubuntu-latest
 
 parameters:
   - name: versioningScheme
@@ -20,208 +23,203 @@ variables:
   MajorMinorVersion: "1.0"
   PatchVersion: "0"
 
-jobs:
-# **Setup & Install Dependencies**
-- job: Setup
-  displayName: "Setup Environment"
-  pool:
-    vmImage: ubuntu-latest
-  steps:
-    - checkout: self
-      fetchDepth: 0
+stages:
+  - stage: Build
+    displayName: "Build & Install Dependencies"
+    jobs:
+      - job: InstallDependencies
+        displayName: "Install Dependencies"
+        steps:
+          - checkout: self
+            fetchDepth: 0
 
-    - task: NodeTool@0
-      inputs:
-        versionSpec: '20.x'
-      displayName: 'Install Node.js'
+          - task: NodeTool@0
+            inputs:
+              versionSpec: '20.x'
+            displayName: "Install Node.js"
 
-    - task: Npm@1
-      displayName: 'Install NPM in Client'
-      inputs:
-        command: 'install'
-        workingDir: 'client'
+          - task: Npm@1
+            displayName: "Install NPM in Client"
+            inputs:
+              command: 'install'
+              workingDir: 'client'
 
-    - task: Npm@1
-      displayName: 'Install NPM in Server'
-      inputs:
-        command: 'install'
-        workingDir: 'server'
+          - task: Npm@1
+            displayName: "Install NPM in Server"
+            inputs:
+              command: 'install'
+              workingDir: 'server'
 
-    - task: Npm@1
-      displayName: 'Install NPM in Test'
-      inputs:
-        command: 'install'
-        workingDir: 'tests'
+          - task: Npm@1
+            displayName: "Install NPM in Test"
+            inputs:
+              command: 'install'
+              workingDir: 'tests'
 
-    - task: Npm@1
-      displayName: 'NPM Run Build'
-      inputs:
-        command: 'custom'
-        workingDir: 'client'
-        customCommand: 'run build'
+          - task: Npm@1
+            displayName: "Build Client"
+            inputs:
+              command: 'custom'
+              workingDir: 'client'
+              customCommand: 'run build'
 
-# **Multi-Platform Unit Testing**
-- job: Test
-  displayName: "Multi-Platform Unit Testing"
-  condition: eq(${{ parameters.multi_platform_tests }}, true)
-  strategy:
-    matrix:
-      linux:
-        vmImage: 'ubuntu-latest'
-        coverageDir: '$(System.DefaultWorkingDirectory)/tests/coverage'
-      windows:
-        vmImage: 'windows-latest'
-        coverageDir: '$(System.DefaultWorkingDirectory)/tests/coverage'
-  pool:
-    vmImage: $(vmImage)
-  steps:
-    - checkout: self
+  - stage: Test
+    displayName: "Run Unit Tests"
+    jobs:
+      - ${{ if eq(parameters.multi_platform_tests, true) }}:
+          - job: Test_Linux
+            displayName: "Unit Tests (Linux)"
+            pool:
+              vmImage: ubuntu-latest
+            steps:
+              - checkout: self
 
-    - script: mkdir -p $(System.DefaultWorkingDirectory)/tests/coverage
-      displayName: "Ensure coverage folder exists"
+              - script: mkdir -p $(System.DefaultWorkingDirectory)/tests/coverage
+                displayName: "Ensure Coverage Folder Exists"
 
-    - task: Npm@1
-      displayName: "Install Dependencies"
-      inputs:
-        command: 'install'
-        workingDir: 'tests'
+              - task: Npm@1
+                displayName: "Run Unit Tests (Linux)"
+                inputs:
+                  command: 'custom'
+                  workingDir: 'tests'
+                  customCommand: 'run test'
+                condition: succeededOrFailed()
 
-    - task: Npm@1
-      displayName: "Run Unit Tests on $(Agent.OS)"
-      inputs:
-        command: 'custom'
-        workingDir: 'tests'
-        customCommand: 'run test'
-      condition: succeededOrFailed()
+              - script: |
+                  npm install -g cobertura-merge
+                  lcov-to-cobertura < $(System.DefaultWorkingDirectory)/tests/coverage/lcov.info > $(System.DefaultWorkingDirectory)/tests/coverage/cobertura-coverage.xml
+                displayName: "Convert LCOV to Cobertura (Linux)"
 
-    - task: PublishTestResults@2
-      displayName: "Publish Unit Test Results ($(Agent.OS))"
-      inputs:
-        testResultsFormat: 'JUnit'
-        testResultsFiles: '**/test-results.xml'
-        mergeTestResults: false
-      condition: succeededOrFailed()
+              - task: PublishTestResults@2
+                displayName: "Publish Test Results (Linux)"
+                inputs:
+                  testResultsFormat: 'JUnit'
+                  testResultsFiles: '**/test-results.xml'
+                  mergeTestResults: false
+                condition: succeededOrFailed()
 
-    - task: PublishPipelineArtifact@1
-      displayName: "Upload Coverage Report ($(Agent.OS))"
-      inputs:
-        targetPath: '$(System.DefaultWorkingDirectory)/tests/coverage'
-        artifact: 'Coverage_$(Agent.OS)'
+              - task: PublishPipelineArtifact@1
+                displayName: "Upload Coverage Report (Linux)"
+                inputs:
+                  targetPath: '$(System.DefaultWorkingDirectory)/tests/coverage'
+                  artifact: 'Coverage_Linux'
 
-# **Single-Platform Unit Testing**
-- job: Test_Single
-  displayName: "Single-Platform Unit Testing"
-  condition: eq(${{ parameters.multi_platform_tests }}, false)
-  pool:
-    vmImage: 'ubuntu-latest'
-  steps:
-    - checkout: self
+          - job: Test_Windows
+            displayName: "Unit Tests (Windows)"
+            pool:
+              vmImage: windows-latest
+            steps:
+              - checkout: self
 
-    - script: mkdir -p $(System.DefaultWorkingDirectory)/tests/coverage
-      displayName: "Ensure coverage folder exists"
+              - script: mkdir $(System.DefaultWorkingDirectory)\tests\coverage
+                displayName: "Ensure Coverage Folder Exists"
+                condition: succeededOrFailed()
 
-    - task: Npm@1
-      displayName: Unit tests
-      inputs:
-        command: 'custom'
-        workingDir: 'tests'
-        customCommand: 'run test'
-      condition: succeededOrFailed()
+              - task: Npm@1
+                displayName: "Run Unit Tests (Windows)"
+                inputs:
+                  command: 'custom'
+                  workingDir: 'tests'
+                  customCommand: 'run test'
+                condition: succeededOrFailed()
 
-    - task: PublishTestResults@2
-      displayName: 'Publish Test Results'
-      inputs:
-        testResultsFormat: 'JUnit'
-        testResultsFiles: '**/test-results.xml'
-        failTaskOnFailedTests: true
-      condition: succeededOrFailed()
+              - script: |
+                  npm install -g cobertura-merge
+                  lcov-to-cobertura < $(System.DefaultWorkingDirectory)/tests/coverage/lcov.info > $(System.DefaultWorkingDirectory)/tests/coverage/cobertura-coverage.xml
+                displayName: "Convert LCOV to Cobertura (Windows)"
 
-    - task: PublishPipelineArtifact@1
-      displayName: "Upload Coverage Report (Single-Platform)"
-      inputs:
-        targetPath: '$(System.DefaultWorkingDirectory)/tests/coverage'
-        artifact: 'Coverage_Single'
+              - task: PublishTestResults@2
+                displayName: "Publish Test Results (Windows)"
+                inputs:
+                  testResultsFormat: 'JUnit'
+                  testResultsFiles: '**/test-results.xml'
+                  mergeTestResults: false
+                condition: succeededOrFailed()
 
-# **SonarCloud Code Coverage Reporting (Always Runs)**
-- job: Sonar_Analysis
-  displayName: "SonarCloud Analysis"
-  dependsOn:
-    - Setup
-    - Test
-    - Test_Single
-  condition: succeededOrFailed()
-  pool:
-    vmImage: ubuntu-latest
-  steps:
-    - download: current
-      artifact: Coverage_linux
-      continueOnError: true
-    - download: current
-      artifact: Coverage_windows
-      continueOnError: true
-    - download: current
-      artifact: Coverage_Single
-      continueOnError: true
+              - task: PublishPipelineArtifact@1
+                displayName: "Upload Coverage Report (Windows)"
+                inputs:
+                  targetPath: '$(System.DefaultWorkingDirectory)/tests/coverage'
+                  artifact: 'Coverage_Windows'
 
-    # Debugging step to verify coverage files are downloaded
-    - script: |
-        echo "Checking downloaded artifacts..."
-        ls -R $(Pipeline.Workspace)/Coverage_linux || echo "No Linux coverage"
-        ls -R $(Pipeline.Workspace)/Coverage_windows || echo "No Windows coverage"
-        ls -R $(Pipeline.Workspace)/Coverage_Single || echo "No Single-Platform coverage"
-      displayName: "Debug: List Coverage Artifacts"
+      - ${{ if eq(parameters.multi_platform_tests, false) }}:
+          - job: Test_Single
+            displayName: "Unit Tests (Single Platform)"
+            pool:
+              vmImage: ubuntu-latest
+            steps:
+              - checkout: self
 
-    - task: SonarCloudPrepare@1
-      inputs:
-        SonarCloud: 'Sonarcloud'
-        organization: 'mini-bank-app'
-        scannerMode: 'CLI'
-        configMode: 'manual'
-        cliProjectKey: 'mini-bank-app_mini-bank-app'
-        cliProjectName: 'mini-bank-app'
-        cliSources: '.'
-        extraProperties: |
-          sonar.verbose=true
-          sonar.javascript.lcov.reportPaths=$(Pipeline.Workspace)/Coverage_linux/lcov.info,$(Pipeline.Workspace)/Coverage_windows/lcov.info,$(Pipeline.Workspace)/Coverage_Single/lcov.info
-          sonar.coverageReportPaths=$(Pipeline.Workspace)/Coverage_linux/cobertura-coverage.xml,$(Pipeline.Workspace)/Coverage_windows/cobertura-coverage.xml,$(Pipeline.Workspace)/Coverage_Single/cobertura-coverage.xml
-          sonar.exclusions=**/*.flow
+              - script: mkdir -p $(System.DefaultWorkingDirectory)/tests/coverage
+                displayName: "Ensure Coverage Folder Exists"
 
-    - task: SonarCloudAnalyze@1
+              - task: Npm@1
+                displayName: "Run Unit Tests"
+                inputs:
+                  command: 'custom'
+                  workingDir: 'tests'
+                  customCommand: 'run test'
+                condition: succeededOrFailed()
 
-    - task: SonarCloudPublish@1
-      inputs:
-        pollingTimeoutSec: '300'
+              - task: PublishTestResults@2
+                displayName: "Publish Test Results"
+                inputs:
+                  testResultsFormat: 'JUnit'
+                  testResultsFiles: '**/test-results.xml'
+                  failTaskOnFailedTests: true
+                condition: succeededOrFailed()
 
-# **Copy and Publish Artifacts**
-- job: Publish
-  displayName: "Publish Build Artifacts"
-  dependsOn: Setup
-  pool:
-    vmImage: ubuntu-latest
-  steps:
-    - task: CopyFiles@2
-      displayName: 'Copy Client and Server Files'
-      inputs:
-        Contents: |
-          client/build/**
-          server/**
-        TargetFolder: '$(Build.ArtifactStagingDirectory)'
+              - task: PublishPipelineArtifact@1
+                displayName: "Upload Coverage Report (Single-Platform)"
+                inputs:
+                  targetPath: '$(System.DefaultWorkingDirectory)/tests/coverage'
+                  artifact: 'Coverage_Single'
 
-    - task: CopyFiles@2
-      displayName: 'Copy Tests Files'
-      inputs:
-        Contents: |
-          tests/**
-          !tests/node_modules/**
-        TargetFolder: '$(Build.ArtifactStagingDirectory)'
+  - stage: SonarCloud
+    displayName: "SonarCloud Analysis"
+    dependsOn: Test
+    condition: succeededOrFailed()
+    jobs:
+      - job: Sonar_Analysis
+        displayName: "Run SonarCloud Analysis"
+        steps:
+          - download: current
+            artifact: Coverage_Linux
+            continueOnError: true
+          - download: current
+            artifact: Coverage_Windows
+            continueOnError: true
+          - download: current
+            artifact: Coverage_Single
+            continueOnError: true
 
-    - task: PublishBuildArtifacts@1
-      displayName: 'Publish Artifacts'
-      inputs:
-        PathtoPublish: '$(Build.ArtifactStagingDirectory)'
-        ArtifactName: 'release-$(MajorMinorVersion).$(PatchVersion)'
-        publishLocation: 'Container'
+          - script: |
+              echo "Checking downloaded artifacts..."
+              ls -R $(Pipeline.Workspace)/Coverage_Linux || echo "No Linux coverage"
+              ls -R $(Pipeline.Workspace)/Coverage_Windows || echo "No Windows coverage"
+              ls -R $(Pipeline.Workspace)/Coverage_Single || echo "No Single-Platform coverage"
+            displayName: "Debug: List Coverage Artifacts"
 
+          - task: SonarCloudPrepare@1
+            inputs:
+              SonarCloud: 'Sonarcloud'
+              organization: 'mini-bank-app'
+              scannerMode: 'CLI'
+              configMode: 'manual'
+              cliProjectKey: 'mini-bank-app_mini-bank-app'
+              cliProjectName: 'mini-bank-app'
+              cliSources: '.'
+              extraProperties: |
+                sonar.verbose=true
+                sonar.javascript.lcov.reportPaths=$(Pipeline.Workspace)/Coverage_Linux/lcov.info,$(Pipeline.Workspace)/Coverage_Windows/lcov.info,$(Pipeline.Workspace)/Coverage_Single/lcov.info
+                sonar.coverageReportPaths=$(Pipeline.Workspace)/Coverage_Linux/cobertura-coverage.xml,$(Pipeline.Workspace)/Coverage_Windows/cobertura-coverage.xml,$(Pipeline.Workspace)/Coverage_Single/cobertura-coverage.xml
+                sonar.exclusions=**/*.flow
+
+          - task: SonarCloudAnalyze@1
+
+          - task: SonarCloudPublish@1
+            inputs:
+              pollingTimeoutSec: '300'
 
 # trigger:
 # - main
