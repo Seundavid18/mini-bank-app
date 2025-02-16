@@ -6,6 +6,13 @@
   "scripts": {
     "test": "nyc --reporter=cobertura --reporter=lcov --reporter=html --include='../server/**/*.js' mocha './test/*.test.js' --reporter mocha-junit-reporter --reporter-options mochaFile=./test-results.xml"
   },
+  "nyc": {
+    "reporter": ["cobertura", "lcov", "html"],
+    "report-dir": "./coverage",
+    "cobertura": {
+      "version": "1.0"
+    }
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",

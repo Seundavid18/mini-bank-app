@@ -6,14 +6,6 @@ pool:
   vmImage: ubuntu-latest
 
 parameters:
-  - name: versioningScheme
-    type: string
-    default: "main-patch"
-    values:
-      - main-patch
-      - release-patch
-      - manual
-
   - name: multi_platform_tests
     type: boolean
     default: true
@@ -39,22 +31,9 @@ stages:
             displayName: "Install Node.js"
 
           - task: Npm@1
-            displayName: "Install NPM in Client"
+            displayName: "Install NPM Dependencies"
             inputs:
               command: 'install'
-              workingDir: 'client'
-
-          - task: Npm@1
-            displayName: "Install NPM in Server"
-            inputs:
-              command: 'install'
-              workingDir: 'server'
-
-          - task: Npm@1
-            displayName: "Install NPM in Test"
-            inputs:
-              command: 'install'
-              workingDir: 'tests'
 
           - task: Npm@1
             displayName: "Build Client"
@@ -62,23 +41,6 @@ stages:
               command: 'custom'
               workingDir: 'client'
               customCommand: 'run build'
-
-          # **📦 Publish Artifacts**
-          - task: CopyFiles@2
-            displayName: "Copy Client & Server Files"
-            inputs:
-              Contents: |
-                client/build/**
-                server/**
-              TargetFolder: '$(Build.ArtifactStagingDirectory)'
-
-          - task: CopyFiles@2
-            displayName: "Copy Test Files"
-            inputs:
-              Contents: |
-                tests/**
-                !tests/node_modules/**
-              TargetFolder: '$(Build.ArtifactStagingDirectory)'
 
           - task: PublishBuildArtifacts@1
             displayName: "Publish Build Artifacts"
@@ -109,13 +71,6 @@ stages:
                   customCommand: 'run test'
                 condition: succeededOrFailed()
 
-              - task: PublishTestResults@2
-                displayName: "Publish Test Results (Linux)"
-                inputs:
-                  testResultsFormat: 'JUnit'
-                  testResultsFiles: '**/test-results.xml'
-                condition: succeededOrFailed()
-
               - task: PublishPipelineArtifact@1
                 displayName: "Upload Coverage Report (Linux)"
                 inputs:
@@ -129,9 +84,15 @@ stages:
             steps:
               - checkout: self
 
-              - script: mkdir $(System.DefaultWorkingDirectory)\tests\coverage
+              - script: |
+                  if not exist "$(System.DefaultWorkingDirectory)\tests\coverage" mkdir "$(System.DefaultWorkingDirectory)\tests\coverage"
                 displayName: "Ensure Coverage Folder Exists"
-                condition: succeededOrFailed()
+
+              - task: Npm@1
+                displayName: "Install NYC in Windows"
+                inputs:
+                  command: 'custom'
+                  customCommand: 'install -g nyc'
 
               - task: Npm@1
                 displayName: "Run Unit Tests (Windows)"
@@ -141,50 +102,11 @@ stages:
                   customCommand: 'run test'
                 condition: succeededOrFailed()
 
-              - task: PublishTestResults@2
-                displayName: "Publish Test Results (Windows)"
-                inputs:
-                  testResultsFormat: 'JUnit'
-                  testResultsFiles: '**/test-results.xml'
-                condition: succeededOrFailed()
-
               - task: PublishPipelineArtifact@1
                 displayName: "Upload Coverage Report (Windows)"
                 inputs:
                   targetPath: '$(System.DefaultWorkingDirectory)/tests/coverage'
                   artifact: 'Coverage_Windows'
-
-      - ${{ if eq(parameters.multi_platform_tests, false) }}:
-          - job: Test_Single
-            displayName: "Unit Tests (Single Platform)"
-            pool:
-              vmImage: ubuntu-latest
-            steps:
-              - checkout: self
-
-              - script: mkdir -p $(System.DefaultWorkingDirectory)/tests/coverage
-                displayName: "Ensure Coverage Folder Exists"
-
-              - task: Npm@1
-                displayName: "Run Unit Tests"
-                inputs:
-                  command: 'custom'
-                  workingDir: 'tests'
-                  customCommand: 'run test'
-                condition: succeededOrFailed()
-
-              - task: PublishTestResults@2
-                displayName: "Publish Test Results"
-                inputs:
-                  testResultsFormat: 'JUnit'
-                  testResultsFiles: '**/test-results.xml'
-                condition: succeededOrFailed()
-
-              - task: PublishPipelineArtifact@1
-                displayName: "Upload Coverage Report (Single-Platform)"
-                inputs:
-                  targetPath: '$(System.DefaultWorkingDirectory)/tests/coverage'
-                  artifact: 'Coverage_Single'
 
   - stage: SonarCloud
     displayName: "SonarCloud Analysis"
@@ -200,15 +122,11 @@ stages:
           - download: current
             artifact: Coverage_Windows
             continueOnError: true
-          - download: current
-            artifact: Coverage_Single
-            continueOnError: true
 
           - script: |
               echo "Checking downloaded artifacts..."
               ls -R $(Pipeline.Workspace)/Coverage_Linux || echo "No Linux coverage"
               ls -R $(Pipeline.Workspace)/Coverage_Windows || echo "No Windows coverage"
-              ls -R $(Pipeline.Workspace)/Coverage_Single || echo "No Single-Platform coverage"
             displayName: "Debug: List Coverage Artifacts"
 
           - task: SonarCloudPrepare@1
@@ -222,8 +140,8 @@ stages:
               cliSources: '.'
               extraProperties: |
                 sonar.verbose=true
-                sonar.javascript.lcov.reportPaths=$(Pipeline.Workspace)/Coverage_Linux/lcov.info,$(Pipeline.Workspace)/Coverage_Windows/lcov.info,$(Pipeline.Workspace)/Coverage_Single/lcov.info
-                sonar.coverageReportPaths=$(Pipeline.Workspace)/Coverage_Linux/cobertura-coverage.xml,$(Pipeline.Workspace)/Coverage_Windows/cobertura-coverage.xml,$(Pipeline.Workspace)/Coverage_Single/cobertura-coverage.xml
+                sonar.javascript.lcov.reportPaths=$(Pipeline.Workspace)/Coverage_Linux/lcov.info,$(Pipeline.Workspace)/Coverage_Windows/lcov.info
+                sonar.coverageReportPaths=$(Pipeline.Workspace)/Coverage_Linux/cobertura-coverage.xml,$(Pipeline.Workspace)/Coverage_Windows/cobertura-coverage.xml
                 sonar.exclusions=**/*.flow
 
           - task: SonarCloudAnalyze@1
