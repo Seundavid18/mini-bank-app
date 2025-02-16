@@ -1,0 +1,17 @@
+{
+    "all": true,
+    "check-coverage": true,
+    "exclude": [
+      "**/node_modules/**",
+      "**/test/**"
+    ],
+    "include": [
+      "../server/**/*.js"
+    ],
+    "reporter": [
+      "text",
+      "html",
+      "cobertura"
+    ],
+    "report-dir": "./coverage"
+  }
