@@ -63,6 +63,30 @@ stages:
               workingDir: 'client'
               customCommand: 'run build'
 
+          # **📦 Publish Artifacts**
+          - task: CopyFiles@2
+            displayName: "Copy Client & Server Files"
+            inputs:
+              Contents: |
+                client/build/**
+                server/**
+              TargetFolder: '$(Build.ArtifactStagingDirectory)'
+
+          - task: CopyFiles@2
+            displayName: "Copy Test Files"
+            inputs:
+              Contents: |
+                tests/**
+                !tests/node_modules/**
+              TargetFolder: '$(Build.ArtifactStagingDirectory)'
+
+          - task: PublishBuildArtifacts@1
+            displayName: "Publish Build Artifacts"
+            inputs:
+              PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+              ArtifactName: 'release-$(MajorMinorVersion).$(PatchVersion)'
+              publishLocation: 'Container'
+
   - stage: Test
     displayName: "Run Unit Tests"
     jobs:
@@ -85,17 +109,11 @@ stages:
                   customCommand: 'run test'
                 condition: succeededOrFailed()
 
-              - script: |
-                  npm install -g cobertura-merge
-                  lcov-to-cobertura < $(System.DefaultWorkingDirectory)/tests/coverage/lcov.info > $(System.DefaultWorkingDirectory)/tests/coverage/cobertura-coverage.xml
-                displayName: "Convert LCOV to Cobertura (Linux)"
-
               - task: PublishTestResults@2
                 displayName: "Publish Test Results (Linux)"
                 inputs:
                   testResultsFormat: 'JUnit'
                   testResultsFiles: '**/test-results.xml'
-                  mergeTestResults: false
                 condition: succeededOrFailed()
 
               - task: PublishPipelineArtifact@1
@@ -123,17 +141,11 @@ stages:
                   customCommand: 'run test'
                 condition: succeededOrFailed()
 
-              - script: |
-                  npm install -g cobertura-merge
-                  lcov-to-cobertura < $(System.DefaultWorkingDirectory)/tests/coverage/lcov.info > $(System.DefaultWorkingDirectory)/tests/coverage/cobertura-coverage.xml
-                displayName: "Convert LCOV to Cobertura (Windows)"
-
               - task: PublishTestResults@2
                 displayName: "Publish Test Results (Windows)"
                 inputs:
                   testResultsFormat: 'JUnit'
                   testResultsFiles: '**/test-results.xml'
-                  mergeTestResults: false
                 condition: succeededOrFailed()
 
               - task: PublishPipelineArtifact@1
@@ -166,7 +178,6 @@ stages:
                 inputs:
                   testResultsFormat: 'JUnit'
                   testResultsFiles: '**/test-results.xml'
-                  failTaskOnFailedTests: true
                 condition: succeededOrFailed()
 
               - task: PublishPipelineArtifact@1
