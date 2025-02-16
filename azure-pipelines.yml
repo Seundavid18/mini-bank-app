@@ -60,7 +60,7 @@ steps:
     workingDir: 'client'
     customCommand: 'run build'
 
-# **Multi-Platform Unit Testing Setup**
+# **Multi-Platform Unit Testing**
 - ${{ if eq(parameters.multi_platform_tests, true) }}:
   - job: Test
     displayName: "Multi-Platform Unit Testing"
@@ -107,69 +107,86 @@ steps:
         targetPath: '$(System.DefaultWorkingDirectory)/tests/coverage'
         artifact: 'Coverage_$(Agent.OS)'
 
-# **SonarCloud Code Coverage Reporting**
-- ${{ if eq(parameters.multi_platform_tests, true) }}:
-  - job: Sonar_Analysis
-    displayName: "SonarCloud Analysis (Separate OS Coverage)"
-    dependsOn: Test
-    condition: succeededOrFailed()
-    steps:
-    - download: current
-      artifact: Coverage_linux
-    - download: current
-      artifact: Coverage_windows
-
-    # Debugging step to verify coverage files are downloaded
-    - script: |
-        echo "Checking downloaded artifacts..."
-        ls -R $(Pipeline.Workspace)/Coverage_linux
-        ls -R $(Pipeline.Workspace)/Coverage_windows
-      displayName: "Debug: List Coverage Artifacts"
-
-    - task: SonarCloudPrepare@1
-      inputs:
-        SonarCloud: 'Sonarcloud'
-        organization: 'mini-bank-app'
-        scannerMode: 'CLI'
-        configMode: 'manual'
-        cliProjectKey: 'mini-bank-app_mini-bank-app'
-        cliProjectName: 'mini-bank-app'
-        cliSources: '.'
-        extraProperties: |
-          sonar.verbose=true
-          sonar.javascript.lcov.reportPaths=$(Pipeline.Workspace)/Coverage_linux/lcov.info,$(Pipeline.Workspace)/Coverage_windows/lcov.info
-          sonar.coverageReportPaths=$(Pipeline.Workspace)/Coverage_linux/cobertura-coverage.xml,$(Pipeline.Workspace)/Coverage_windows/cobertura-coverage.xml
-          sonar.exclusions=**/*.flow
-
-    - task: SonarCloudAnalyze@1
-
-    - task: SonarCloudPublish@1
-      inputs:
-        pollingTimeoutSec: '300'
-
-# **Standard Test Execution (If Not Using Multi-Platform)**
+# **Single-Platform Unit Testing**
 - ${{ if eq(parameters.multi_platform_tests, false) }}:
-  - task: Npm@1
-    displayName: Unit tests
-    inputs:
-      command: 'custom'
-      workingDir: 'tests'
-      customCommand: 'run test'
-    condition: succeededOrFailed()
+  - job: Test_Single
+    displayName: "Single-Platform Unit Testing"
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - checkout: self
 
-  - task: PublishTestResults@2
-    displayName: 'Publish Test Results'
-    inputs:
-      testResultsFormat: 'JUnit'
-      testResultsFiles: '**/test-results.xml'
-      failTaskOnFailedTests: true
-    condition: succeededOrFailed()
+    - script: mkdir -p $(System.DefaultWorkingDirectory)/tests/coverage
+      displayName: "Ensure coverage folder exists"
 
-  - task: PublishCodeCoverageResults@2
-    displayName: 'Build code coverage report'
+    - task: Npm@1
+      displayName: Unit tests
+      inputs:
+        command: 'custom'
+        workingDir: 'tests'
+        customCommand: 'run test'
+      condition: succeededOrFailed()
+
+    - task: PublishTestResults@2
+      displayName: 'Publish Test Results'
+      inputs:
+        testResultsFormat: 'JUnit'
+        testResultsFiles: '**/test-results.xml'
+        failTaskOnFailedTests: true
+      condition: succeededOrFailed()
+
+    - task: PublishPipelineArtifact@1
+      displayName: "Upload Coverage Report (Single-Platform)"
+      inputs:
+        targetPath: '$(System.DefaultWorkingDirectory)/tests/coverage'
+        artifact: 'Coverage_Single'
+
+# **SonarCloud Code Coverage Reporting (Always Runs)**
+- job: Sonar_Analysis
+  displayName: "SonarCloud Analysis"
+  dependsOn: 
+    - ${{ if eq(parameters.multi_platform_tests, true) }}: Test
+    - ${{ if eq(parameters.multi_platform_tests, false) }}: Test_Single
+  condition: succeededOrFailed()
+  steps:
+  - download: current
+    artifact: Coverage_linux
+    continueOnError: true
+  - download: current
+    artifact: Coverage_windows
+    continueOnError: true
+  - download: current
+    artifact: Coverage_Single
+    continueOnError: true
+
+  # Debugging step to verify coverage files are downloaded
+  - script: |
+      echo "Checking downloaded artifacts..."
+      ls -R $(Pipeline.Workspace)/Coverage_linux || echo "No Linux coverage"
+      ls -R $(Pipeline.Workspace)/Coverage_windows || echo "No Windows coverage"
+      ls -R $(Pipeline.Workspace)/Coverage_Single || echo "No Single-Platform coverage"
+    displayName: "Debug: List Coverage Artifacts"
+
+  - task: SonarCloudPrepare@1
     inputs:
-      codeCoverageTool: Cobertura
-      summaryFileLocation: '$(System.DefaultWorkingDirectory)/tests/coverage/cobertura-coverage.xml'
+      SonarCloud: 'Sonarcloud'
+      organization: 'mini-bank-app'
+      scannerMode: 'CLI'
+      configMode: 'manual'
+      cliProjectKey: 'mini-bank-app_mini-bank-app'
+      cliProjectName: 'mini-bank-app'
+      cliSources: '.'
+      extraProperties: |
+        sonar.verbose=true
+        sonar.javascript.lcov.reportPaths=$(Pipeline.Workspace)/Coverage_linux/lcov.info,$(Pipeline.Workspace)/Coverage_windows/lcov.info,$(Pipeline.Workspace)/Coverage_Single/lcov.info
+        sonar.coverageReportPaths=$(Pipeline.Workspace)/Coverage_linux/cobertura-coverage.xml,$(Pipeline.Workspace)/Coverage_windows/cobertura-coverage.xml,$(Pipeline.Workspace)/Coverage_Single/cobertura-coverage.xml
+        sonar.exclusions=**/*.flow
+
+  - task: SonarCloudAnalyze@1
+
+  - task: SonarCloudPublish@1
+    inputs:
+      pollingTimeoutSec: '300'
 
 # Copy and Publish Artifacts
 - task: CopyFiles@2
@@ -194,7 +211,6 @@ steps:
     PathtoPublish: '$(Build.ArtifactStagingDirectory)'
     ArtifactName: 'release-$(FULL_VERSION)'
     publishLocation: 'Container'
-
 
 
 # trigger:
