@@ -23,56 +23,61 @@ variables:
   MajorMinorVersion: "1.0"
   PatchVersion: "0"
 
-steps:
-# Checkout repository with full history
-- checkout: self
-  fetchDepth: 0
+stages:
+- stage: Build
+  displayName: "Build Stage"
+  jobs:
+  - job: Build
+    displayName: "Install & Build"
+    steps:
+    - checkout: self
+      fetchDepth: 0
 
-# Install Node.js and NPM
-- task: NodeTool@0
-  inputs:
-    versionSpec: '20.x'
-  displayName: 'Install Node.js'
+    - task: NodeTool@0
+      inputs:
+        versionSpec: '20.x'
+      displayName: 'Install Node.js'
 
-# Install dependencies
-- task: Npm@1
-  displayName: 'Install NPM in Client'
-  inputs:
-    command: 'install'
-    workingDir: 'client'
+    - task: Npm@1
+      displayName: 'Install NPM in Client'
+      inputs:
+        command: 'install'
+        workingDir: 'client'
 
-- task: Npm@1
-  displayName: 'Install NPM in Server'
-  inputs:
-    command: 'install'
-    workingDir: 'server'
+    - task: Npm@1
+      displayName: 'Install NPM in Server'
+      inputs:
+        command: 'install'
+        workingDir: 'server'
 
-- task: Npm@1
-  displayName: 'Install NPM in Test'
-  inputs:
-    command: 'install'
-    workingDir: 'tests'
+    - task: Npm@1
+      displayName: 'Install NPM in Test'
+      inputs:
+        command: 'install'
+        workingDir: 'tests'
 
-- task: Npm@1
-  displayName: 'NPM Run Build'
-  inputs:
-    command: 'custom'
-    workingDir: 'client'
-    customCommand: 'run build'
+    - task: Npm@1
+      displayName: 'NPM Run Build'
+      inputs:
+        command: 'custom'
+        workingDir: 'client'
+        customCommand: 'run build'
 
-# **Multi-Platform Unit Testing**
-- job: Test
-  displayName: "Multi-Platform Unit Testing"
-  condition: eq(parameters.multi_platform_tests, true)
-  strategy:
-    matrix:
-      linux:
-        vmImage: 'ubuntu-latest'
-        coverageDir: '$(System.DefaultWorkingDirectory)/tests/coverage'
-      windows:
-        vmImage: 'windows-latest'
-        coverageDir: '$(System.DefaultWorkingDirectory)/tests/coverage'
-  steps:
+- stage: Test
+  displayName: "Test Stage"
+  jobs:
+  - job: Test
+    displayName: "Multi-Platform Unit Testing"
+    condition: eq(parameters.multi_platform_tests, true)
+    strategy:
+      matrix:
+        linux:
+          vmImage: 'ubuntu-latest'
+          coverageDir: '$(System.DefaultWorkingDirectory)/tests/coverage'
+        windows:
+          vmImage: 'windows-latest'
+          coverageDir: '$(System.DefaultWorkingDirectory)/tests/coverage'
+    steps:
     - checkout: self
 
     - script: mkdir -p $(System.DefaultWorkingDirectory)/tests/coverage
@@ -106,13 +111,12 @@ steps:
         targetPath: '$(System.DefaultWorkingDirectory)/tests/coverage'
         artifact: 'Coverage_$(Agent.OS)'
 
-# **Single-Platform Unit Testing**
-- job: Test_Single
-  displayName: "Single-Platform Unit Testing"
-  condition: eq(parameters.multi_platform_tests, false)
-  pool:
-    vmImage: 'ubuntu-latest'
-  steps:
+  - job: Test_Single
+    displayName: "Single-Platform Unit Testing"
+    condition: eq(parameters.multi_platform_tests, false)
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
     - checkout: self
 
     - script: mkdir -p $(System.DefaultWorkingDirectory)/tests/coverage
@@ -140,14 +144,14 @@ steps:
         targetPath: '$(System.DefaultWorkingDirectory)/tests/coverage'
         artifact: 'Coverage_Single'
 
-# **SonarCloud Code Coverage Reporting**
-- job: Sonar_Analysis
+- stage: SonarCloud
   displayName: "SonarCloud Analysis"
-  dependsOn:
-    - Test
-    - Test_Single
+  dependsOn: Test
   condition: always()
-  steps:
+  jobs:
+  - job: Sonar_Analysis
+    displayName: "SonarCloud Analysis"
+    steps:
     - download: current
       artifact: Coverage_linux
       continueOnError: true
@@ -186,30 +190,38 @@ steps:
       inputs:
         pollingTimeoutSec: '300'
 
-# **Copy and Publish Artifacts**
-- task: CopyFiles@2
-  displayName: 'Copy Client and Server Files'
-  inputs:
-    Contents: |
-      client/build/**
-      server/**
-    TargetFolder: '$(Build.ArtifactStagingDirectory)'
+- stage: Release
+  displayName: "Publish Artifacts"
+  dependsOn: 
+    - Build
+    - Test
+  condition: succeeded()
+  jobs:
+  - job: Publish
+    displayName: "Copy & Publish Build Artifacts"
+    steps:
+    - task: CopyFiles@2
+      displayName: 'Copy Client and Server Files'
+      inputs:
+        Contents: |
+          client/build/**
+          server/**
+        TargetFolder: '$(Build.ArtifactStagingDirectory)'
 
-- task: CopyFiles@2
-  displayName: 'Copy Test Files'
-  inputs:
-    Contents: |
-      tests/**
-      !tests/node_modules/**
-    TargetFolder: '$(Build.ArtifactStagingDirectory)'
+    - task: CopyFiles@2
+      displayName: 'Copy Test Files'
+      inputs:
+        Contents: |
+          tests/**
+          !tests/node_modules/**
+        TargetFolder: '$(Build.ArtifactStagingDirectory)'
 
-- task: PublishBuildArtifacts@1
-  displayName: 'Publish Artifacts'
-  inputs:
-    PathtoPublish: '$(Build.ArtifactStagingDirectory)'
-    ArtifactName: 'release-$(FULL_VERSION)'
-    publishLocation: 'Container'
-
+    - task: PublishBuildArtifacts@1
+      displayName: 'Publish Artifacts'
+      inputs:
+        PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+        ArtifactName: 'release-$(FULL_VERSION)'
+        publishLocation: 'Container'
 
 
 
