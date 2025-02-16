@@ -147,8 +147,8 @@ jobs:
   displayName: "SonarCloud Analysis"
   dependsOn:
     - Setup
-    - Test
-    - Test_Single
+    - ${{ if eq(parameters.multi_platform_tests, true) }}: Test
+    - ${{ if eq(parameters.multi_platform_tests, false) }}: Test_Single
   condition: succeededOrFailed()
   pool:
     vmImage: ubuntu-latest
@@ -221,7 +221,7 @@ jobs:
         PathtoPublish: '$(Build.ArtifactStagingDirectory)'
         ArtifactName: 'release-$(MajorMinorVersion).$(PatchVersion)'
         publishLocation: 'Container'
-        
+
 
 # trigger:
 # - main
