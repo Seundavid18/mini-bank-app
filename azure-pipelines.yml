@@ -60,19 +60,19 @@ steps:
     workingDir: 'client'
     customCommand: 'run build'
 
-# **Multi-Platform Unit Testing Setup**
-- ${{ if eq(parameters.multi_platform_tests, true) }}:
-  - job: Test
-    displayName: "Multi-Platform Unit Testing"
-    strategy:
-      matrix:
-        linux:
-          vmImage: 'ubuntu-latest'
-          coverageDir: '$(System.DefaultWorkingDirectory)/tests/coverage'
-        windows:
-          vmImage: 'windows-latest'
-          coverageDir: '$(System.DefaultWorkingDirectory)/tests/coverage'
-    steps:
+# **Multi-Platform Unit Testing**
+- job: Test
+  displayName: "Multi-Platform Unit Testing"
+  condition: eq(parameters.multi_platform_tests, true)
+  strategy:
+    matrix:
+      linux:
+        vmImage: 'ubuntu-latest'
+        coverageDir: '$(System.DefaultWorkingDirectory)/tests/coverage'
+      windows:
+        vmImage: 'windows-latest'
+        coverageDir: '$(System.DefaultWorkingDirectory)/tests/coverage'
+  steps:
     - checkout: self
 
     - script: mkdir -p $(System.DefaultWorkingDirectory)/tests/coverage
@@ -100,27 +100,26 @@ steps:
         mergeTestResults: false
       condition: succeededOrFailed()
 
-    # Upload the coverage folder for later use
     - task: PublishPipelineArtifact@1
       displayName: "Upload Coverage Report ($(Agent.OS))"
       inputs:
         targetPath: '$(System.DefaultWorkingDirectory)/tests/coverage'
         artifact: 'Coverage_$(Agent.OS)'
 
-# **Standard Test Execution (If Not Using Multi-Platform)**
-- ${{ if eq(parameters.multi_platform_tests, false) }}:
-  - job: Test_Single
-    displayName: "Single-Platform Unit Testing"
-    pool:
-      vmImage: 'ubuntu-latest'
-    steps:
+# **Single-Platform Unit Testing**
+- job: Test_Single
+  displayName: "Single-Platform Unit Testing"
+  condition: eq(parameters.multi_platform_tests, false)
+  pool:
+    vmImage: 'ubuntu-latest'
+  steps:
     - checkout: self
 
     - script: mkdir -p $(System.DefaultWorkingDirectory)/tests/coverage
       displayName: "Ensure coverage folder exists"
 
     - task: Npm@1
-      displayName: Unit tests
+      displayName: "Run Unit Tests"
       inputs:
         command: 'custom'
         workingDir: 'tests'
@@ -141,54 +140,53 @@ steps:
         targetPath: '$(System.DefaultWorkingDirectory)/tests/coverage'
         artifact: 'Coverage_Single'
 
-# **SonarCloud Code Coverage Reporting - Always Runs**
+# **SonarCloud Code Coverage Reporting**
 - job: Sonar_Analysis
   displayName: "SonarCloud Analysis"
-  dependsOn: 
-    - ${{ if eq(parameters.multi_platform_tests, true) }}: Test
-    - ${{ if eq(parameters.multi_platform_tests, false) }}: Test_Single
-  condition: succeededOrFailed()
+  dependsOn:
+    - Test
+    - Test_Single
+  condition: always()
   steps:
-  - download: current
-    artifact: Coverage_linux
-    continueOnError: true
-  - download: current
-    artifact: Coverage_windows
-    continueOnError: true
-  - download: current
-    artifact: Coverage_Single
-    continueOnError: true
+    - download: current
+      artifact: Coverage_linux
+      continueOnError: true
+    - download: current
+      artifact: Coverage_windows
+      continueOnError: true
+    - download: current
+      artifact: Coverage_Single
+      continueOnError: true
 
-  # Debugging step to verify coverage files are downloaded
-  - script: |
-      echo "Checking downloaded artifacts..."
-      ls -R $(Pipeline.Workspace)/Coverage_linux || echo "No Linux coverage"
-      ls -R $(Pipeline.Workspace)/Coverage_windows || echo "No Windows coverage"
-      ls -R $(Pipeline.Workspace)/Coverage_Single || echo "No Single-Platform coverage"
-    displayName: "Debug: List Coverage Artifacts"
+    - script: |
+        echo "Checking downloaded artifacts..."
+        ls -R $(Pipeline.Workspace)/Coverage_linux || echo "No Linux coverage"
+        ls -R $(Pipeline.Workspace)/Coverage_windows || echo "No Windows coverage"
+        ls -R $(Pipeline.Workspace)/Coverage_Single || echo "No Single-Platform coverage"
+      displayName: "Debug: List Coverage Artifacts"
 
-  - task: SonarCloudPrepare@1
-    inputs:
-      SonarCloud: 'Sonarcloud'
-      organization: 'mini-bank-app'
-      scannerMode: 'CLI'
-      configMode: 'manual'
-      cliProjectKey: 'mini-bank-app_mini-bank-app'
-      cliProjectName: 'mini-bank-app'
-      cliSources: '.'
-      extraProperties: |
-        sonar.verbose=true
-        sonar.javascript.lcov.reportPaths=$(Pipeline.Workspace)/Coverage_linux/lcov.info,$(Pipeline.Workspace)/Coverage_windows/lcov.info,$(Pipeline.Workspace)/Coverage_Single/lcov.info
-        sonar.coverageReportPaths=$(Pipeline.Workspace)/Coverage_linux/cobertura-coverage.xml,$(Pipeline.Workspace)/Coverage_windows/cobertura-coverage.xml,$(Pipeline.Workspace)/Coverage_Single/cobertura-coverage.xml
-        sonar.exclusions=**/*.flow
+    - task: SonarCloudPrepare@1
+      inputs:
+        SonarCloud: 'Sonarcloud'
+        organization: 'mini-bank-app'
+        scannerMode: 'CLI'
+        configMode: 'manual'
+        cliProjectKey: 'mini-bank-app_mini-bank-app'
+        cliProjectName: 'mini-bank-app'
+        cliSources: '.'
+        extraProperties: |
+          sonar.verbose=true
+          sonar.javascript.lcov.reportPaths=$(Pipeline.Workspace)/Coverage_linux/lcov.info,$(Pipeline.Workspace)/Coverage_windows/lcov.info,$(Pipeline.Workspace)/Coverage_Single/lcov.info
+          sonar.coverageReportPaths=$(Pipeline.Workspace)/Coverage_linux/cobertura-coverage.xml,$(Pipeline.Workspace)/Coverage_windows/cobertura-coverage.xml,$(Pipeline.Workspace)/Coverage_Single/cobertura-coverage.xml
+          sonar.exclusions=**/*.flow
 
-  - task: SonarCloudAnalyze@1
+    - task: SonarCloudAnalyze@1
 
-  - task: SonarCloudPublish@1
-    inputs:
-      pollingTimeoutSec: '300'
+    - task: SonarCloudPublish@1
+      inputs:
+        pollingTimeoutSec: '300'
 
-# Copy and Publish Artifacts
+# **Copy and Publish Artifacts**
 - task: CopyFiles@2
   displayName: 'Copy Client and Server Files'
   inputs:
@@ -198,7 +196,7 @@ steps:
     TargetFolder: '$(Build.ArtifactStagingDirectory)'
 
 - task: CopyFiles@2
-  displayName: 'Copy Tests Files'
+  displayName: 'Copy Test Files'
   inputs:
     Contents: |
       tests/**
