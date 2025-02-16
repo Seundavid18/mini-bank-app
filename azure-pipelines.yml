@@ -55,6 +55,12 @@ stages:
             inputs:
               command: 'install'
               workingDir: 'tests'
+          
+          - task: Npm@1
+            displayName: "Install NYC"
+            inputs:
+              command: 'custom'
+              customCommand: 'install -g nyc'
 
           - task: Npm@1
             displayName: "Build Client"
@@ -182,6 +188,12 @@ stages:
                 sonar.coverageReportPaths=$(Pipeline.Workspace)/Coverage_Linux/cobertura-coverage.xml,$(Pipeline.Workspace)/Coverage_Windows/cobertura-coverage.xml
                 sonar.exclusions=**/*.flow
 
+          - script: |
+              echo "Checking Cobertura report..."
+              cat $(Pipeline.Workspace)/Coverage_Linux/cobertura-coverage.xml | head -n 20
+              cat $(Pipeline.Workspace)/Coverage_Windows/cobertura-coverage.xml | head -n 20
+            displayName: "Debug: Show First 20 Lines of Cobertura Reports"
+            
           - task: SonarCloudAnalyze@1
 
           - task: SonarCloudPublish@1
