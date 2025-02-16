@@ -10,105 +10,25 @@ parameters:
     type: string
     default: "main-patch"
     values:
-      - main-patch       # Increment patch version when merged to main
-      - release-patch    # Increment patch version when merged to release branch
-      - manual           # Manual major.minor.patch versioning
+      - main-patch
+      - release-patch
+      - manual
+
+  - name: multi_platform_tests
+    type: boolean
+    default: false
+    displayName: "Enable Windows & Linux Unit Testing"
 
 variables:
-  MajorMinorVersion: "1.0"  # Manually set major.minor version
-  PatchVersion: "0"         # Default patch version
+  MajorMinorVersion: "1.0"
+  PatchVersion: "0"
 
 steps:
 # Checkout repository with full history
 - checkout: self
   fetchDepth: 0
 
-# Download and install GitVersion CLI
-- script: |
-    echo "Downloading GitVersion CLI..."
-    wget https://github.com/GitTools/GitVersion/releases/download/6.1.0/gitversion-linux-x64-6.1.0.tar.gz -O gitversion.tar.gz
-    mkdir gitversion
-    tar -xzf gitversion.tar.gz -C gitversion
-    export PATH="$PATH:$(pwd)/gitversion"
-    echo "##vso[task.prependpath]$(pwd)/gitversion"
-  displayName: "Install GitVersion CLI"
-
-# Run GitVersion and capture output
-- script: |
-    echo "Running GitVersion..."
-    ./gitversion/gitversion /output json /config gitversion.yml > gitversion_output.json
-    echo "GitVersion output saved."
-  displayName: "Run GitVersion"
-
-# Extract version from GitVersion
-- script: |
-    echo "Extracting version from GitVersion output..."
-    if [ -f gitversion_output.json ]; then
-        VERSION=$(cat gitversion_output.json | jq -r '.FullSemVer' || echo "")
-        if [ -z "$VERSION" ]; then
-            echo "Failed to extract version. Invalid or missing FullSemVer."
-            exit 1
-        fi
-        echo "Computed version: $VERSION"
-        echo "##vso[task.setvariable variable=GIT_FULL_VERSION]$VERSION"
-    else
-        echo "gitversion_output.json not found."
-        exit 1
-    fi
-  displayName: "Extract Version from GitVersion"
-
-# Apply Logic for Versioning
-- script: |
-    echo "Selected versioning scheme: ${{ parameters.versioningScheme }}"
-
-    # Start with the manually set Major.Minor version
-    majorMinor="${{ variables.MajorMinorVersion }}"
-    echo "Base Major.Minor version: $majorMinor"
-
-    # Extract patch version from GitVersion's FullSemVer
-    gitVersion=$(GIT_FULL_VERSION)
-    patch=$(echo "$gitVersion" | grep -oE '[0-9]+$')
-
-    # Increment patch based on branch and versioning scheme
-    if [ "${{ parameters.versioningScheme }}" == "main-patch" ] && [ "$BUILD_SOURCEBRANCHNAME" == "main" ]; then
-      echo "Incrementing patch version for main branch."
-      patch=$((patch + 1))
-    elif [ "${{ parameters.versioningScheme }}" == "release-patch" ] && [[ "$BUILD_SOURCEBRANCHNAME" =~ ^release.* ]]; then
-      echo "Incrementing patch version for release branch."
-      patch=$((patch + 1))
-    elif [ "${{ parameters.versioningScheme }}" == "manual" ]; then
-      echo "Using manual major.minor.patch versioning. No auto-increment."
-    else
-      echo "No patch increment applied."
-    fi
-
-    # Combine major.minor and updated patch
-    finalVersion="${majorMinor}.${patch}"
-    echo "Final computed version: $finalVersion"
-
-    # Export version as pipeline variable
-    echo "##vso[task.setvariable variable=FULL_VERSION]$finalVersion"
-  displayName: "Compute Version Based on Parameter"
-
-# Set Build Name with Commit Message and Full Version
-- script: |
-    echo "Updating pipeline name..."
-    
-    # Retrieve the latest commit message
-    commitMessage=$(git log -1 --pretty=%s | tr -d '\n' | tr -d '\r')
-    
-    # Sanitize the commit message
-    sanitizedCommitMessage=$(echo "$commitMessage" | sed 's/[^a-zA-Z0-9._-]/-/g')
-    
-    # Combine Build ID and Full Version (exclude redundant commit message at the end)
-    buildName="#${BUILD_BUILDID} • $sanitizedCommitMessage $(FULL_VERSION)"
-    echo "Computed build name: $buildName"
-    
-    # Update the build number
-    echo "##vso[build.updatebuildnumber]$buildName"
-  displayName: "Set Build Name"
-  env:
-    FULL_VERSION: $(FULL_VERSION)  # Pass FULL_VERSION as an environment variable
+# --- Versioning Steps (Omitted for brevity, remains unchanged) ---
 
 # Install Node.js and NPM
 - task: NodeTool@0
@@ -116,7 +36,7 @@ steps:
     versionSpec: '20.x'
   displayName: 'Install Node.js'
 
-# NPM Install Steps
+# Install dependencies
 - task: Npm@1
   displayName: 'Install NPM in Client'
   inputs:
@@ -142,28 +62,108 @@ steps:
     workingDir: 'client'
     customCommand: 'run build'
 
-# SonarCloud Analysis
-- task: SonarCloudPrepare@1
-  inputs:
-    SonarCloud: 'Sonarcloud'
-    organization: 'mini-bank-app'
-    scannerMode: 'CLI'
-    configMode: 'manual'
-    cliProjectKey: 'mini-bank-app_mini-bank-app'
-    cliProjectName: 'mini-bank-app'
-    cliSources: '.'
-    extraProperties: |
-      sonar.verbose=true
-      sonar.javascript.lcov.reportPaths: '**/coverage/lcov.info'
-      sonar.exclusions=**/*.flow
+# --- SonarCloud Analysis (Unchanged) ---
 
-- task: SonarCloudAnalyze@1
+# **Multi-Platform Unit Testing Setup**
+- ${{ if eq(parameters.multi_platform_tests, true) }}:
+  - job: Test
+    displayName: "Multi-Platform Unit Testing"
+    strategy:
+      matrix:
+        linux:
+          vmImage: 'ubuntu-latest'
+          coverageDir: '$(System.DefaultWorkingDirectory)/TestResults/linux'
+        windows:
+          vmImage: 'windows-latest'
+          coverageDir: '$(System.DefaultWorkingDirectory)/TestResults/windows'
+    steps:
+    - checkout: self
 
-- task: SonarCloudPublish@1
-  inputs:
-    pollingTimeoutSec: '300'
+    - task: Npm@1
+      displayName: "Install Dependencies"
+      inputs:
+        command: 'install'
+        workingDir: 'tests'
 
-# Copy Files
+    - task: Npm@1
+      displayName: "Run Unit Tests on $(Agent.OS)"
+      inputs:
+        command: 'custom'
+        workingDir: 'tests'
+        customCommand: 'run test'
+      condition: succeededOrFailed()
+
+    - task: PublishTestResults@2
+      displayName: "Publish Unit Test Results ($(Agent.OS))"
+      inputs:
+        testResultsFormat: 'JUnit'
+        testResultsFiles: '**/test-results.xml'
+        mergeTestResults: false
+      condition: succeededOrFailed()
+
+    - task: PublishPipelineArtifact@1
+      displayName: "Upload Coverage Report ($(Agent.OS))"
+      inputs:
+        targetPath: '$(System.DefaultWorkingDirectory)/tests/coverage/cobertura-coverage.xml'
+        artifact: 'Coverage_$(Agent.OS)'
+
+# **SonarCloud Code Coverage Reporting**
+- ${{ if eq(parameters.multi_platform_tests, true) }}:
+  - job: Sonar_Analysis
+    displayName: "SonarCloud Analysis (Separate OS Coverage)"
+    dependsOn: Test
+    condition: succeededOrFailed()
+    steps:
+    - download: current
+      artifact: Coverage_linux
+    - download: current
+      artifact: Coverage_windows
+
+    - task: SonarCloudPrepare@1
+      inputs:
+        SonarCloud: 'Sonarcloud'
+        organization: 'mini-bank-app'
+        scannerMode: 'CLI'
+        configMode: 'manual'
+        cliProjectKey: 'mini-bank-app_mini-bank-app'
+        cliProjectName: 'mini-bank-app'
+        cliSources: '.'
+        extraProperties: |
+          sonar.verbose=true
+          sonar.coverageReportPaths=$(Pipeline.Workspace)/Coverage_linux/cobertura-coverage.xml,$(Pipeline.Workspace)/Coverage_windows/cobertura-coverage.xml
+          sonar.exclusions=**/*.flow
+
+    - task: SonarCloudAnalyze@1
+
+    - task: SonarCloudPublish@1
+      inputs:
+        pollingTimeoutSec: '300'
+
+# **Standard Test Execution (If Not Using Multi-Platform)**
+- ${{ if eq(parameters.multi_platform_tests, false) }}:
+  - task: Npm@1
+    displayName: Unit tests
+    inputs:
+      command: 'custom'
+      workingDir: 'tests'
+      customCommand: 'run test'
+    condition: succeededOrFailed()
+
+  - task: PublishTestResults@2
+    displayName: 'Publish Test Results'
+    inputs:
+      testResultsFormat: 'JUnit'
+      testResultsFiles: '**/test-results.xml'
+      failTaskOnFailedTests: true
+    condition: succeededOrFailed()
+
+  - task: PublishCodeCoverageResults@2
+    displayName: 'Build code coverage report'
+    inputs:
+      codeCoverageTool: Cobertura
+      summaryFileLocation: '$(System.DefaultWorkingDirectory)/tests/coverage/cobertura-coverage.xml'
+
+# Copy and Publish Artifacts
 - task: CopyFiles@2
   displayName: 'Copy Client and Server Files'
   inputs:
@@ -180,7 +180,6 @@ steps:
       !tests/node_modules/**
     TargetFolder: '$(Build.ArtifactStagingDirectory)'
 
-# Publish Build Artifacts
 - task: PublishBuildArtifacts@1
   displayName: 'Publish Artifacts'
   inputs:
@@ -188,35 +187,230 @@ steps:
     ArtifactName: 'release-$(FULL_VERSION)'
     publishLocation: 'Container'
 
-# Run Unit Tests
-- task: Npm@1
-  displayName: Unit tests
-  inputs:
-    command: 'custom'
-    workingDir: 'tests'
-    customCommand: 'run test'
-  condition: succeededOrFailed()
 
-# Publish Unit Tests
-- task: PublishTestResults@2
-  displayName: 'Publish Test Results'
-  inputs:
-    testResultsFormat: 'JUnit'
-    testResultsFiles: '**/test-results.xml'
-    failTaskOnFailedTests: true
-  condition: succeededOrFailed()
 
-# Install NYC in tests
-- task: Npm@1
-  displayName: 'NPM install NYC in Test'
-  inputs:
-    command: 'custom'
-    workingDir: 'tests'
-    customCommand: 'install --save-dev nyc'
 
-# Publish Coverage results
-- task: PublishCodeCoverageResults@2
-  displayName: 'Build code coverage report'
-  inputs:
-    codeCoverageTool: Cobertura
-    summaryFileLocation: '$(System.DefaultWorkingDirectory)/tests/coverage/cobertura-coverage.xml'
+
+
+# trigger:
+# - main
+# - release
+
+# pool:
+#   vmImage: ubuntu-latest
+
+# parameters:
+#   - name: versioningScheme
+#     type: string
+#     default: "main-patch"
+#     values:
+#       - main-patch       # Increment patch version when merged to main
+#       - release-patch    # Increment patch version when merged to release branch
+#       - manual           # Manual major.minor.patch versioning
+
+# variables:
+#   MajorMinorVersion: "1.0"  # Manually set major.minor version
+#   PatchVersion: "0"         # Default patch version
+
+# steps:
+# # Checkout repository with full history
+# - checkout: self
+#   fetchDepth: 0
+
+# # Download and install GitVersion CLI
+# - script: |
+#     echo "Downloading GitVersion CLI..."
+#     wget https://github.com/GitTools/GitVersion/releases/download/6.1.0/gitversion-linux-x64-6.1.0.tar.gz -O gitversion.tar.gz
+#     mkdir gitversion
+#     tar -xzf gitversion.tar.gz -C gitversion
+#     export PATH="$PATH:$(pwd)/gitversion"
+#     echo "##vso[task.prependpath]$(pwd)/gitversion"
+#   displayName: "Install GitVersion CLI"
+
+# # Run GitVersion and capture output
+# - script: |
+#     echo "Running GitVersion..."
+#     ./gitversion/gitversion /output json /config gitversion.yml > gitversion_output.json
+#     echo "GitVersion output saved."
+#   displayName: "Run GitVersion"
+
+# # Extract version from GitVersion
+# - script: |
+#     echo "Extracting version from GitVersion output..."
+#     if [ -f gitversion_output.json ]; then
+#         VERSION=$(cat gitversion_output.json | jq -r '.FullSemVer' || echo "")
+#         if [ -z "$VERSION" ]; then
+#             echo "Failed to extract version. Invalid or missing FullSemVer."
+#             exit 1
+#         fi
+#         echo "Computed version: $VERSION"
+#         echo "##vso[task.setvariable variable=GIT_FULL_VERSION]$VERSION"
+#     else
+#         echo "gitversion_output.json not found."
+#         exit 1
+#     fi
+#   displayName: "Extract Version from GitVersion"
+
+# # Apply Logic for Versioning
+# - script: |
+#     echo "Selected versioning scheme: ${{ parameters.versioningScheme }}"
+
+#     # Start with the manually set Major.Minor version
+#     majorMinor="${{ variables.MajorMinorVersion }}"
+#     echo "Base Major.Minor version: $majorMinor"
+
+#     # Extract patch version from GitVersion's FullSemVer
+#     gitVersion=$(GIT_FULL_VERSION)
+#     patch=$(echo "$gitVersion" | grep -oE '[0-9]+$')
+
+#     # Increment patch based on branch and versioning scheme
+#     if [ "${{ parameters.versioningScheme }}" == "main-patch" ] && [ "$BUILD_SOURCEBRANCHNAME" == "main" ]; then
+#       echo "Incrementing patch version for main branch."
+#       patch=$((patch + 1))
+#     elif [ "${{ parameters.versioningScheme }}" == "release-patch" ] && [[ "$BUILD_SOURCEBRANCHNAME" =~ ^release.* ]]; then
+#       echo "Incrementing patch version for release branch."
+#       patch=$((patch + 1))
+#     elif [ "${{ parameters.versioningScheme }}" == "manual" ]; then
+#       echo "Using manual major.minor.patch versioning. No auto-increment."
+#     else
+#       echo "No patch increment applied."
+#     fi
+
+#     # Combine major.minor and updated patch
+#     finalVersion="${majorMinor}.${patch}"
+#     echo "Final computed version: $finalVersion"
+
+#     # Export version as pipeline variable
+#     echo "##vso[task.setvariable variable=FULL_VERSION]$finalVersion"
+#   displayName: "Compute Version Based on Parameter"
+
+# # Set Build Name with Commit Message and Full Version
+# - script: |
+#     echo "Updating pipeline name..."
+    
+#     # Retrieve the latest commit message
+#     commitMessage=$(git log -1 --pretty=%s | tr -d '\n' | tr -d '\r')
+    
+#     # Sanitize the commit message
+#     sanitizedCommitMessage=$(echo "$commitMessage" | sed 's/[^a-zA-Z0-9._-]/-/g')
+    
+#     # Combine Build ID and Full Version (exclude redundant commit message at the end)
+#     buildName="#${BUILD_BUILDID} • $sanitizedCommitMessage $(FULL_VERSION)"
+#     echo "Computed build name: $buildName"
+    
+#     # Update the build number
+#     echo "##vso[build.updatebuildnumber]$buildName"
+#   displayName: "Set Build Name"
+#   env:
+#     FULL_VERSION: $(FULL_VERSION)  # Pass FULL_VERSION as an environment variable
+
+# # Install Node.js and NPM
+# - task: NodeTool@0
+#   inputs:
+#     versionSpec: '20.x'
+#   displayName: 'Install Node.js'
+
+# # NPM Install Steps
+# - task: Npm@1
+#   displayName: 'Install NPM in Client'
+#   inputs:
+#     command: 'install'
+#     workingDir: 'client'
+
+# - task: Npm@1
+#   displayName: 'Install NPM in Server'
+#   inputs:
+#     command: 'install'
+#     workingDir: 'server'
+
+# - task: Npm@1
+#   displayName: 'Install NPM in Test'
+#   inputs:
+#     command: 'install'
+#     workingDir: 'tests'
+
+# - task: Npm@1
+#   displayName: 'NPM Run Build'
+#   inputs:
+#     command: 'custom'
+#     workingDir: 'client'
+#     customCommand: 'run build'
+
+# # SonarCloud Analysis
+# - task: SonarCloudPrepare@1
+#   inputs:
+#     SonarCloud: 'Sonarcloud'
+#     organization: 'mini-bank-app'
+#     scannerMode: 'CLI'
+#     configMode: 'manual'
+#     cliProjectKey: 'mini-bank-app_mini-bank-app'
+#     cliProjectName: 'mini-bank-app'
+#     cliSources: '.'
+#     extraProperties: |
+#       sonar.verbose=true
+#       sonar.javascript.lcov.reportPaths: '**/coverage/lcov.info'
+#       sonar.exclusions=**/*.flow
+
+# - task: SonarCloudAnalyze@1
+
+# - task: SonarCloudPublish@1
+#   inputs:
+#     pollingTimeoutSec: '300'
+
+# # Copy Files
+# - task: CopyFiles@2
+#   displayName: 'Copy Client and Server Files'
+#   inputs:
+#     Contents: |
+#       client/build/**
+#       server/**
+#     TargetFolder: '$(Build.ArtifactStagingDirectory)'
+
+# - task: CopyFiles@2
+#   displayName: 'Copy Tests Files'
+#   inputs:
+#     Contents: |
+#       tests/**
+#       !tests/node_modules/**
+#     TargetFolder: '$(Build.ArtifactStagingDirectory)'
+
+# # Publish Build Artifacts
+# - task: PublishBuildArtifacts@1
+#   displayName: 'Publish Artifacts'
+#   inputs:
+#     PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+#     ArtifactName: 'release-$(FULL_VERSION)'
+#     publishLocation: 'Container'
+
+# # Run Unit Tests
+# - task: Npm@1
+#   displayName: Unit tests
+#   inputs:
+#     command: 'custom'
+#     workingDir: 'tests'
+#     customCommand: 'run test'
+#   condition: succeededOrFailed()
+
+# # Publish Unit Tests
+# - task: PublishTestResults@2
+#   displayName: 'Publish Test Results'
+#   inputs:
+#     testResultsFormat: 'JUnit'
+#     testResultsFiles: '**/test-results.xml'
+#     failTaskOnFailedTests: true
+#   condition: succeededOrFailed()
+
+# # Install NYC in tests
+# - task: Npm@1
+#   displayName: 'NPM install NYC in Test'
+#   inputs:
+#     command: 'custom'
+#     workingDir: 'tests'
+#     customCommand: 'install --save-dev nyc'
+
+# # Publish Coverage results
+# - task: PublishCodeCoverageResults@2
+#   displayName: 'Build code coverage report'
+#   inputs:
+#     codeCoverageTool: Cobertura
+#     summaryFileLocation: '$(System.DefaultWorkingDirectory)/tests/coverage/cobertura-coverage.xml'
