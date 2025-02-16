@@ -23,52 +23,47 @@ variables:
   MajorMinorVersion: "1.0"
   PatchVersion: "0"
 
-stages:
-- stage: Build
-  displayName: "Build Stage"
-  jobs:
-  - job: Build
-    displayName: "Install & Build"
-    steps:
-    - checkout: self
-      fetchDepth: 0
+steps:
+# Checkout repository with full history
+- checkout: self
+  fetchDepth: 0
 
-    - task: NodeTool@0
-      inputs:
-        versionSpec: '20.x'
-      displayName: 'Install Node.js'
+# Install Node.js and NPM
+- task: NodeTool@0
+  inputs:
+    versionSpec: '20.x'
+  displayName: 'Install Node.js'
 
-    - task: Npm@1
-      displayName: 'Install NPM in Client'
-      inputs:
-        command: 'install'
-        workingDir: 'client'
+# Install dependencies
+- task: Npm@1
+  displayName: 'Install NPM in Client'
+  inputs:
+    command: 'install'
+    workingDir: 'client'
 
-    - task: Npm@1
-      displayName: 'Install NPM in Server'
-      inputs:
-        command: 'install'
-        workingDir: 'server'
+- task: Npm@1
+  displayName: 'Install NPM in Server'
+  inputs:
+    command: 'install'
+    workingDir: 'server'
 
-    - task: Npm@1
-      displayName: 'Install NPM in Test'
-      inputs:
-        command: 'install'
-        workingDir: 'tests'
+- task: Npm@1
+  displayName: 'Install NPM in Test'
+  inputs:
+    command: 'install'
+    workingDir: 'tests'
 
-    - task: Npm@1
-      displayName: 'NPM Run Build'
-      inputs:
-        command: 'custom'
-        workingDir: 'client'
-        customCommand: 'run build'
+- task: Npm@1
+  displayName: 'NPM Run Build'
+  inputs:
+    command: 'custom'
+    workingDir: 'client'
+    customCommand: 'run build'
 
-- stage: Test
-  displayName: "Test Stage"
-  jobs:
+# **Multi-Platform Unit Testing Setup**
+- ${{ if eq(parameters.multi_platform_tests, true) }}:
   - job: Test
     displayName: "Multi-Platform Unit Testing"
-    condition: eq(parameters.multi_platform_tests, true)
     strategy:
       matrix:
         linux:
@@ -105,68 +100,30 @@ stages:
         mergeTestResults: false
       condition: succeededOrFailed()
 
+    # Upload the coverage folder for later use
     - task: PublishPipelineArtifact@1
       displayName: "Upload Coverage Report ($(Agent.OS))"
       inputs:
         targetPath: '$(System.DefaultWorkingDirectory)/tests/coverage'
         artifact: 'Coverage_$(Agent.OS)'
 
-  - job: Test_Single
-    displayName: "Single-Platform Unit Testing"
-    condition: eq(parameters.multi_platform_tests, false)
-    pool:
-      vmImage: 'ubuntu-latest'
-    steps:
-    - checkout: self
-
-    - script: mkdir -p $(System.DefaultWorkingDirectory)/tests/coverage
-      displayName: "Ensure coverage folder exists"
-
-    - task: Npm@1
-      displayName: "Run Unit Tests"
-      inputs:
-        command: 'custom'
-        workingDir: 'tests'
-        customCommand: 'run test'
-      condition: succeededOrFailed()
-
-    - task: PublishTestResults@2
-      displayName: 'Publish Test Results'
-      inputs:
-        testResultsFormat: 'JUnit'
-        testResultsFiles: '**/test-results.xml'
-        failTaskOnFailedTests: true
-      condition: succeededOrFailed()
-
-    - task: PublishPipelineArtifact@1
-      displayName: "Upload Coverage Report (Single-Platform)"
-      inputs:
-        targetPath: '$(System.DefaultWorkingDirectory)/tests/coverage'
-        artifact: 'Coverage_Single'
-
-- stage: SonarCloud
-  displayName: "SonarCloud Analysis"
-  dependsOn: Test
-  condition: always()
-  jobs:
+# **SonarCloud Code Coverage Reporting**
+- ${{ if eq(parameters.multi_platform_tests, true) }}:
   - job: Sonar_Analysis
-    displayName: "SonarCloud Analysis"
+    displayName: "SonarCloud Analysis (Separate OS Coverage)"
+    dependsOn: Test
+    condition: succeededOrFailed()
     steps:
     - download: current
       artifact: Coverage_linux
-      continueOnError: true
     - download: current
       artifact: Coverage_windows
-      continueOnError: true
-    - download: current
-      artifact: Coverage_Single
-      continueOnError: true
 
+    # Debugging step to verify coverage files are downloaded
     - script: |
         echo "Checking downloaded artifacts..."
-        ls -R $(Pipeline.Workspace)/Coverage_linux || echo "No Linux coverage"
-        ls -R $(Pipeline.Workspace)/Coverage_windows || echo "No Windows coverage"
-        ls -R $(Pipeline.Workspace)/Coverage_Single || echo "No Single-Platform coverage"
+        ls -R $(Pipeline.Workspace)/Coverage_linux
+        ls -R $(Pipeline.Workspace)/Coverage_windows
       displayName: "Debug: List Coverage Artifacts"
 
     - task: SonarCloudPrepare@1
@@ -180,8 +137,8 @@ stages:
         cliSources: '.'
         extraProperties: |
           sonar.verbose=true
-          sonar.javascript.lcov.reportPaths=$(Pipeline.Workspace)/Coverage_linux/lcov.info,$(Pipeline.Workspace)/Coverage_windows/lcov.info,$(Pipeline.Workspace)/Coverage_Single/lcov.info
-          sonar.coverageReportPaths=$(Pipeline.Workspace)/Coverage_linux/cobertura-coverage.xml,$(Pipeline.Workspace)/Coverage_windows/cobertura-coverage.xml,$(Pipeline.Workspace)/Coverage_Single/cobertura-coverage.xml
+          sonar.javascript.lcov.reportPaths=$(Pipeline.Workspace)/Coverage_linux/lcov.info,$(Pipeline.Workspace)/Coverage_windows/lcov.info
+          sonar.coverageReportPaths=$(Pipeline.Workspace)/Coverage_linux/cobertura-coverage.xml,$(Pipeline.Workspace)/Coverage_windows/cobertura-coverage.xml
           sonar.exclusions=**/*.flow
 
     - task: SonarCloudAnalyze@1
@@ -190,40 +147,53 @@ stages:
       inputs:
         pollingTimeoutSec: '300'
 
-- stage: Release
-  displayName: "Publish Artifacts"
-  dependsOn: 
-    - Build
-    - Test
-  condition: succeeded()
-  jobs:
-  - job: Publish
-    displayName: "Copy & Publish Build Artifacts"
-    steps:
-    - task: CopyFiles@2
-      displayName: 'Copy Client and Server Files'
-      inputs:
-        Contents: |
-          client/build/**
-          server/**
-        TargetFolder: '$(Build.ArtifactStagingDirectory)'
+# **Standard Test Execution (If Not Using Multi-Platform)**
+- ${{ if eq(parameters.multi_platform_tests, false) }}:
+  - task: Npm@1
+    displayName: Unit tests
+    inputs:
+      command: 'custom'
+      workingDir: 'tests'
+      customCommand: 'run test'
+    condition: succeededOrFailed()
 
-    - task: CopyFiles@2
-      displayName: 'Copy Test Files'
-      inputs:
-        Contents: |
-          tests/**
-          !tests/node_modules/**
-        TargetFolder: '$(Build.ArtifactStagingDirectory)'
+  - task: PublishTestResults@2
+    displayName: 'Publish Test Results'
+    inputs:
+      testResultsFormat: 'JUnit'
+      testResultsFiles: '**/test-results.xml'
+      failTaskOnFailedTests: true
+    condition: succeededOrFailed()
 
-    - task: PublishBuildArtifacts@1
-      displayName: 'Publish Artifacts'
-      inputs:
-        PathtoPublish: '$(Build.ArtifactStagingDirectory)'
-        ArtifactName: 'release-$(FULL_VERSION)'
-        publishLocation: 'Container'
+  - task: PublishCodeCoverageResults@2
+    displayName: 'Build code coverage report'
+    inputs:
+      codeCoverageTool: Cobertura
+      summaryFileLocation: '$(System.DefaultWorkingDirectory)/tests/coverage/cobertura-coverage.xml'
 
+# Copy and Publish Artifacts
+- task: CopyFiles@2
+  displayName: 'Copy Client and Server Files'
+  inputs:
+    Contents: |
+      client/build/**
+      server/**
+    TargetFolder: '$(Build.ArtifactStagingDirectory)'
 
+- task: CopyFiles@2
+  displayName: 'Copy Tests Files'
+  inputs:
+    Contents: |
+      tests/**
+      !tests/node_modules/**
+    TargetFolder: '$(Build.ArtifactStagingDirectory)'
+
+- task: PublishBuildArtifacts@1
+  displayName: 'Publish Artifacts'
+  inputs:
+    PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+    ArtifactName: 'release-$(FULL_VERSION)'
+    publishLocation: 'Container'
 
 
 
