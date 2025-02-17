@@ -124,12 +124,6 @@ stages:
                 condition: eq(variables['Agent.OS'], 'Windows_NT')
 
               - task: Npm@1
-                displayName: "Install NYC"
-                inputs:
-                  command: 'custom'
-                  customCommand: 'install -g nyc'
-
-              - task: Npm@1
                 displayName: "Run Unit Tests"
                 inputs:
                   command: 'custom'
