@@ -55,12 +55,6 @@ stages:
             inputs:
               command: 'install'
               workingDir: 'tests'
-          
-          - task: Npm@1
-            displayName: "Install NYC"
-            inputs:
-              command: 'custom'
-              customCommand: 'install -g nyc'
 
           - task: Npm@1
             displayName: "Build Client"
@@ -124,12 +118,21 @@ stages:
                 condition: eq(variables['Agent.OS'], 'Windows_NT')
 
               - task: Npm@1
+                displayName: "Install NYC"
+                inputs:
+                  command: 'custom'
+                  customCommand: 'install -g nyc'
+
+              - task: Npm@1
                 displayName: "Run Unit Tests"
                 inputs:
                   command: 'custom'
                   workingDir: 'tests'
                   customCommand: 'run test'
                 condition: succeededOrFailed()
+
+              - script: nyc report --reporter=text-summary
+                displayName: "Debug: NYC Coverage Summary"
 
               - task: PublishPipelineArtifact@1
                 displayName: "Upload Coverage Report"
