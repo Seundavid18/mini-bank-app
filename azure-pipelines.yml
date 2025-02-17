@@ -131,9 +131,6 @@ stages:
                   customCommand: 'run test'
                 condition: succeededOrFailed()
 
-              - script: nyc report --reporter=text-summary
-                displayName: "Debug: NYC Coverage Summary"
-
               - task: PublishPipelineArtifact@1
                 displayName: "Upload Coverage Report"
                 inputs:
