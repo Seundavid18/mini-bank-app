@@ -92,55 +92,56 @@ stages:
               PathtoPublish: '$(Build.ArtifactStagingDirectory)'
               ArtifactName: 'release-$(MajorMinorVersion).$(PatchVersion)'
               publishLocation: 'Container'
-    - stage: Test
-      displayName: "Run Unit Tests"
-      jobs:
-        - ${{ if eq(parameters.multi_platform_tests, true) }}:
-            - job: Run_Tests
-              displayName: "Unit Tests"
-              strategy:
-                matrix:
-                  Linux:
-                    vmImage: ubuntu-latest
-                    coverageArtifact: Coverage_Linux
-                  Windows:
-                    vmImage: windows-latest
-                    coverageArtifact: Coverage_Windows
-              pool:
-                vmImage: $(vmImage)
+    
+  - stage: Test
+    displayName: "Run Unit Tests"
+    jobs:
+      - ${{ if eq(parameters.multi_platform_tests, true) }}:
+          - job: Run_Tests
+            displayName: "Unit Tests"
+            strategy:
+              matrix:
+                Linux:
+                  vmImage: ubuntu-latest
+                  coverageArtifact: Coverage_Linux
+                Windows:
+                  vmImage: windows-latest
+                  coverageArtifact: Coverage_Windows
+            pool:
+              vmImage: $(vmImage)
 
-              steps:
-                - checkout: self
+            steps:
+              - checkout: self
 
-                - script: |
-                    mkdir -p $(System.DefaultWorkingDirectory)/tests/coverage
-                  displayName: "Ensure Coverage Folder Exists (Linux)"
-                  condition: eq(variables['Agent.OS'], 'Linux')
+              - script: |
+                  mkdir -p $(System.DefaultWorkingDirectory)/tests/coverage
+                displayName: "Ensure Coverage Folder Exists (Linux)"
+                condition: eq(variables['Agent.OS'], 'Linux')
 
-                - script: |
-                    if not exist "$(System.DefaultWorkingDirectory)\tests\coverage" mkdir "$(System.DefaultWorkingDirectory)\tests\coverage"
-                  displayName: "Ensure Coverage Folder Exists (Windows)"
-                  condition: eq(variables['Agent.OS'], 'Windows_NT')
+              - script: |
+                  if not exist "$(System.DefaultWorkingDirectory)\tests\coverage" mkdir "$(System.DefaultWorkingDirectory)\tests\coverage"
+                displayName: "Ensure Coverage Folder Exists (Windows)"
+                condition: eq(variables['Agent.OS'], 'Windows_NT')
 
-                - task: Npm@1
-                  displayName: "Install NYC"
-                  inputs:
-                    command: 'custom'
-                    customCommand: 'install -g nyc'
+              - task: Npm@1
+                displayName: "Install NYC"
+                inputs:
+                  command: 'custom'
+                  customCommand: 'install -g nyc'
 
-                - task: Npm@1
-                  displayName: "Run Unit Tests"
-                  inputs:
-                    command: 'custom'
-                    workingDir: 'tests'
-                    customCommand: 'run test'
-                  condition: succeededOrFailed()
+              - task: Npm@1
+                displayName: "Run Unit Tests"
+                inputs:
+                  command: 'custom'
+                  workingDir: 'tests'
+                  customCommand: 'run test'
+                condition: succeededOrFailed()
 
-                - task: PublishPipelineArtifact@1
-                  displayName: "Upload Coverage Report"
-                  inputs:
-                    targetPath: '$(System.DefaultWorkingDirectory)/tests/coverage'
-                    artifact: '$(coverageArtifact)'
+              - task: PublishPipelineArtifact@1
+                displayName: "Upload Coverage Report"
+                inputs:
+                  targetPath: '$(System.DefaultWorkingDirectory)/tests/coverage'
+                  artifact: '$(coverageArtifact)'
   
   # - stage: Test
   #   displayName: "Run Unit Tests"
