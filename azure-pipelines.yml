@@ -193,6 +193,11 @@ stages:
               cat $(Pipeline.Workspace)/Coverage_Linux/cobertura-coverage.xml | head -n 20
               cat $(Pipeline.Workspace)/Coverage_Windows/cobertura-coverage.xml | head -n 20
             displayName: "Debug: Show First 20 Lines of Cobertura Reports"
+
+          - task: SonarCloudAnalyze@1
+            env:
+              SONAR_SCANNER_OPTS: "-X"
+            displayName: "SonarCloud Analysis with Debug Logs"
             
           - task: SonarCloudAnalyze@1
 
