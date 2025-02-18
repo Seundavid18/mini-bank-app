@@ -9,11 +9,6 @@ parameters:
   - name: versioningScheme
     type: string
     default: "main-patch"
-    values:
-      - main-patch
-      - release-patch
-      - manual
-
   - name: multi_platform_tests
     type: boolean
     default: true
@@ -28,7 +23,6 @@ stages:
     displayName: "Build & Install Dependencies"
     jobs:
       - job: InstallDependencies
-        displayName: "Install Dependencies"
         steps:
           - checkout: self
             fetchDepth: 0
@@ -36,22 +30,18 @@ stages:
           - task: NodeTool@0
             inputs:
               versionSpec: '20.x'
-            displayName: "Install Node.js"
 
           - task: Npm@1
-            displayName: "Install NPM in Client"
             inputs:
               command: 'install'
               workingDir: 'client'
 
           - task: Npm@1
-            displayName: "Install NPM in Server"
             inputs:
               command: 'install'
               workingDir: 'server'
 
           - task: Npm@1
-            displayName: "Install NPM in Test"
             inputs:
               command: 'install'
               workingDir: 'tests'
@@ -63,36 +53,16 @@ stages:
               workingDir: 'client'
               customCommand: 'run build'
 
-          # **📦 Publish Artifacts**
-          - task: CopyFiles@2
-            displayName: "Copy Client & Server Files"
-            inputs:
-              Contents: |
-                client/build/**
-                server/**
-              TargetFolder: '$(Build.ArtifactStagingDirectory)'
-
-          - task: CopyFiles@2
-            displayName: "Copy Test Files"
-            inputs:
-              Contents: |
-                tests/**
-                !tests/node_modules/**
-              TargetFolder: '$(Build.ArtifactStagingDirectory)'
-
           - task: PublishBuildArtifacts@1
-            displayName: "Publish Build Artifacts"
             inputs:
               PathtoPublish: '$(Build.ArtifactStagingDirectory)'
               ArtifactName: 'release-$(MajorMinorVersion).$(PatchVersion)'
-              publishLocation: 'Container'
-    
+
   - stage: Test
     displayName: "Run Unit Tests"
     jobs:
       - ${{ if eq(parameters.multi_platform_tests, true) }}:
           - job: Run_Tests
-            displayName: "Unit Tests"
             strategy:
               matrix:
                 Linux:
@@ -103,25 +73,8 @@ stages:
                   coverageArtifact: Coverage_Windows
             pool:
               vmImage: $(vmImage)
-
             steps:
               - checkout: self
-
-              - script: |
-                  mkdir -p $(System.DefaultWorkingDirectory)/tests/coverage
-                displayName: "Ensure Coverage Folder Exists (Linux)"
-                condition: eq(variables['Agent.OS'], 'Linux')
-
-              - script: |
-                  if not exist "$(System.DefaultWorkingDirectory)\tests\coverage" mkdir "$(System.DefaultWorkingDirectory)\tests\coverage"
-                displayName: "Ensure Coverage Folder Exists (Windows)"
-                condition: eq(variables['Agent.OS'], 'Windows_NT')
-
-              - task: Npm@1
-                displayName: "Install NYC"
-                inputs:
-                  command: 'custom'
-                  customCommand: 'install -g nyc'
 
               - task: Npm@1
                 displayName: "Run Unit Tests"
@@ -136,6 +89,190 @@ stages:
                 inputs:
                   targetPath: '$(System.DefaultWorkingDirectory)/tests/coverage'
                   artifact: '$(coverageArtifact)'
+
+  - stage: SonarCloud
+    displayName: "SonarCloud Analysis"
+    dependsOn: Test
+    condition: succeededOrFailed()
+    jobs:
+      - job: Sonar_Analysis
+        steps:
+          - download: current
+            artifact: Coverage_Linux
+            continueOnError: true
+          - download: current
+            artifact: Coverage_Windows
+            continueOnError: true
+
+          - script: |
+              echo "Merging coverage reports..."
+              mkdir -p $(Pipeline.Workspace)/MergedCoverage
+              npx nyc merge $(Pipeline.Workspace)/Coverage_Linux $(Pipeline.Workspace)/Coverage_Windows > $(Pipeline.Workspace)/MergedCoverage/merged-lcov.info
+            displayName: "Merge Coverage Reports"
+
+          - script: |
+              echo "Checking merged coverage report..."
+              head -n 20 $(Pipeline.Workspace)/MergedCoverage/merged-lcov.info
+            displayName: "Debug: Show Merged Coverage"
+
+          - task: SonarCloudPrepare@1
+            inputs:
+              SonarCloud: 'Sonarcloud'
+              organization: 'mini-bank-app'
+              scannerMode: 'CLI'
+              cliProjectKey: 'mini-bank-app_mini-bank-app'
+              cliProjectName: 'mini-bank-app'
+              cliSources: '.'
+              extraProperties: |
+                sonar.javascript.lcov.reportPaths=$(Pipeline.Workspace)/MergedCoverage/merged-lcov.info
+                sonar.exclusions=**/*.flow
+
+          - task: SonarCloudAnalyze@1
+            displayName: "SonarCloud Analysis"
+
+          - task: SonarCloudPublish@1
+            inputs:
+              pollingTimeoutSec: '300'
+
+
+# trigger:
+#   - main
+#   - release
+
+# pool:
+#   vmImage: ubuntu-latest
+
+# parameters:
+#   - name: versioningScheme
+#     type: string
+#     default: "main-patch"
+#     values:
+#       - main-patch
+#       - release-patch
+#       - manual
+
+#   - name: multi_platform_tests
+#     type: boolean
+#     default: true
+#     displayName: "Enable Windows & Linux Unit Testing"
+
+# variables:
+#   MajorMinorVersion: "1.0"
+#   PatchVersion: "0"
+
+# stages:
+#   - stage: Build
+#     displayName: "Build & Install Dependencies"
+#     jobs:
+#       - job: InstallDependencies
+#         displayName: "Install Dependencies"
+#         steps:
+#           - checkout: self
+#             fetchDepth: 0
+
+#           - task: NodeTool@0
+#             inputs:
+#               versionSpec: '20.x'
+#             displayName: "Install Node.js"
+
+#           - task: Npm@1
+#             displayName: "Install NPM in Client"
+#             inputs:
+#               command: 'install'
+#               workingDir: 'client'
+
+#           - task: Npm@1
+#             displayName: "Install NPM in Server"
+#             inputs:
+#               command: 'install'
+#               workingDir: 'server'
+
+#           - task: Npm@1
+#             displayName: "Install NPM in Test"
+#             inputs:
+#               command: 'install'
+#               workingDir: 'tests'
+
+#           - task: Npm@1
+#             displayName: "Build Client"
+#             inputs:
+#               command: 'custom'
+#               workingDir: 'client'
+#               customCommand: 'run build'
+
+#           # **📦 Publish Artifacts**
+#           - task: CopyFiles@2
+#             displayName: "Copy Client & Server Files"
+#             inputs:
+#               Contents: |
+#                 client/build/**
+#                 server/**
+#               TargetFolder: '$(Build.ArtifactStagingDirectory)'
+
+#           - task: CopyFiles@2
+#             displayName: "Copy Test Files"
+#             inputs:
+#               Contents: |
+#                 tests/**
+#                 !tests/node_modules/**
+#               TargetFolder: '$(Build.ArtifactStagingDirectory)'
+
+#           - task: PublishBuildArtifacts@1
+#             displayName: "Publish Build Artifacts"
+#             inputs:
+#               PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+#               ArtifactName: 'release-$(MajorMinorVersion).$(PatchVersion)'
+#               publishLocation: 'Container'
+    
+#   - stage: Test
+#     displayName: "Run Unit Tests"
+#     jobs:
+#       - ${{ if eq(parameters.multi_platform_tests, true) }}:
+#           - job: Run_Tests
+#             displayName: "Unit Tests"
+#             strategy:
+#               matrix:
+#                 Linux:
+#                   vmImage: ubuntu-latest
+#                   coverageArtifact: Coverage_Linux
+#                 Windows:
+#                   vmImage: windows-latest
+#                   coverageArtifact: Coverage_Windows
+#             pool:
+#               vmImage: $(vmImage)
+
+#             steps:
+#               - checkout: self
+
+#               - script: |
+#                   mkdir -p $(System.DefaultWorkingDirectory)/tests/coverage
+#                 displayName: "Ensure Coverage Folder Exists (Linux)"
+#                 condition: eq(variables['Agent.OS'], 'Linux')
+
+#               - script: |
+#                   if not exist "$(System.DefaultWorkingDirectory)\tests\coverage" mkdir "$(System.DefaultWorkingDirectory)\tests\coverage"
+#                 displayName: "Ensure Coverage Folder Exists (Windows)"
+#                 condition: eq(variables['Agent.OS'], 'Windows_NT')
+
+#               - task: Npm@1
+#                 displayName: "Install NYC"
+#                 inputs:
+#                   command: 'custom'
+#                   customCommand: 'install -g nyc'
+
+#               - task: Npm@1
+#                 displayName: "Run Unit Tests"
+#                 inputs:
+#                   command: 'custom'
+#                   workingDir: 'tests'
+#                   customCommand: 'run test'
+#                 condition: succeededOrFailed()
+
+#               - task: PublishPipelineArtifact@1
+#                 displayName: "Upload Coverage Report"
+#                 inputs:
+#                   targetPath: '$(System.DefaultWorkingDirectory)/tests/coverage'
+#                   artifact: '$(coverageArtifact)'
   
   # - stage: Test
   #   displayName: "Run Unit Tests"
@@ -195,59 +332,6 @@ stages:
   #               inputs:
   #                 targetPath: '$(System.DefaultWorkingDirectory)/tests/coverage'
   #                 artifact: 'Coverage_Windows'
-
-  - stage: SonarCloud
-    displayName: "SonarCloud Analysis"
-    dependsOn: Test
-    condition: succeededOrFailed()
-    jobs:
-      - job: Sonar_Analysis
-        displayName: "Run SonarCloud Analysis"
-        steps:
-          - download: current
-            artifact: Coverage_Linux
-            continueOnError: true
-          - download: current
-            artifact: Coverage_Windows
-            continueOnError: true
-
-          - script: |
-              echo "Checking downloaded artifacts..."
-              ls -R $(Pipeline.Workspace)/Coverage_Linux || echo "No Linux coverage"
-              ls -R $(Pipeline.Workspace)/Coverage_Windows || echo "No Windows coverage"
-            displayName: "Debug: List Coverage Artifacts"
-
-          - task: SonarCloudPrepare@1
-            inputs:
-              SonarCloud: 'Sonarcloud'
-              organization: 'mini-bank-app'
-              scannerMode: 'CLI'
-              configMode: 'manual'
-              cliProjectKey: 'mini-bank-app_mini-bank-app'
-              cliProjectName: 'mini-bank-app'
-              cliSources: '.'
-              extraProperties: |
-                sonar.verbose=true
-                sonar.javascript.lcov.reportPaths=$(Pipeline.Workspace)/Coverage_Linux/lcov.info,$(Pipeline.Workspace)/Coverage_Windows/lcov.info
-                sonar.coverageReportPaths=$(Pipeline.Workspace)/Coverage_Linux/cobertura-coverage.xml,$(Pipeline.Workspace)/Coverage_Windows/cobertura-coverage.xml
-                sonar.exclusions=**/*.flow
-
-          - script: |
-              echo "Checking Cobertura report..."
-              cat $(Pipeline.Workspace)/Coverage_Linux/cobertura-coverage.xml | head -n 20
-              cat $(Pipeline.Workspace)/Coverage_Windows/cobertura-coverage.xml | head -n 20
-            displayName: "Debug: Show First 20 Lines of Cobertura Reports"
-
-          - task: SonarCloudAnalyze@1
-            env:
-              SONAR_SCANNER_OPTS: "-X"
-            displayName: "SonarCloud Analysis with Debug Logs"
-            
-          - task: SonarCloudAnalyze@1
-
-          - task: SonarCloudPublish@1
-            inputs:
-              pollingTimeoutSec: '300'
 
 # trigger:
 # - main
