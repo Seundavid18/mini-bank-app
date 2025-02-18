@@ -6,9 +6,6 @@ pool:
   vmImage: ubuntu-latest
 
 parameters:
-  - name: versioningScheme
-    type: string
-    default: "main-patch"
   - name: multi_platform_tests
     type: boolean
     default: true
@@ -23,6 +20,7 @@ stages:
     displayName: "Build & Install Dependencies"
     jobs:
       - job: InstallDependencies
+        displayName: "Install Dependencies"
         steps:
           - checkout: self
             fetchDepth: 0
@@ -30,17 +28,17 @@ stages:
           - task: NodeTool@0
             inputs:
               versionSpec: '20.x'
+            displayName: "Install Node.js"
 
           - task: Npm@1
+            displayName: "Install NPM Dependencies (Client, Server, Tests)"
             inputs:
               command: 'install'
               workingDir: 'client'
-
           - task: Npm@1
             inputs:
               command: 'install'
               workingDir: 'server'
-
           - task: Npm@1
             inputs:
               command: 'install'
@@ -54,15 +52,19 @@ stages:
               customCommand: 'run build'
 
           - task: PublishBuildArtifacts@1
+            displayName: "Publish Build Artifacts"
             inputs:
               PathtoPublish: '$(Build.ArtifactStagingDirectory)'
               ArtifactName: 'release-$(MajorMinorVersion).$(PatchVersion)'
+              publishLocation: 'Container'
 
   - stage: Test
     displayName: "Run Unit Tests"
+    dependsOn: Build
     jobs:
       - ${{ if eq(parameters.multi_platform_tests, true) }}:
           - job: Run_Tests
+            displayName: "Unit Tests (Windows & Linux)"
             strategy:
               matrix:
                 Linux:
@@ -77,11 +79,18 @@ stages:
               - checkout: self
 
               - task: Npm@1
-                displayName: "Run Unit Tests"
+                displayName: "Ensure Local NYC Installation"
                 inputs:
-                  command: 'custom'
+                  command: 'install'
                   workingDir: 'tests'
-                  customCommand: 'run test'
+
+              - script: |
+                  echo "Running tests with NYC..."
+                  npx nyc --reporter=cobertura --reporter=html mocha './test/*.test.js' \
+                    --reporter mocha-junit-reporter \
+                    --reporter-options mochaFile=./test-results.xml
+                displayName: "Run Unit Tests with Coverage"
+                workingDirectory: 'tests'
                 condition: succeededOrFailed()
 
               - task: PublishPipelineArtifact@1
@@ -96,6 +105,7 @@ stages:
     condition: succeededOrFailed()
     jobs:
       - job: Sonar_Analysis
+        displayName: "Run SonarCloud Analysis"
         steps:
           - download: current
             artifact: Coverage_Linux
@@ -105,30 +115,28 @@ stages:
             continueOnError: true
 
           - script: |
-              echo "Merging coverage reports..."
-              mkdir -p $(Pipeline.Workspace)/MergedCoverage
-              npx nyc merge $(Pipeline.Workspace)/Coverage_Linux $(Pipeline.Workspace)/Coverage_Windows > $(Pipeline.Workspace)/MergedCoverage/merged-lcov.info
-            displayName: "Merge Coverage Reports"
-
-          - script: |
-              echo "Checking merged coverage report..."
-              head -n 20 $(Pipeline.Workspace)/MergedCoverage/merged-lcov.info
-            displayName: "Debug: Show Merged Coverage"
+              echo "Checking downloaded artifacts..."
+              ls -R $(Pipeline.Workspace)/Coverage_Linux || echo "No Linux coverage"
+              ls -R $(Pipeline.Workspace)/Coverage_Windows || echo "No Windows coverage"
+            displayName: "Debug: List Coverage Artifacts"
 
           - task: SonarCloudPrepare@1
             inputs:
               SonarCloud: 'Sonarcloud'
               organization: 'mini-bank-app'
               scannerMode: 'CLI'
+              configMode: 'manual'
               cliProjectKey: 'mini-bank-app_mini-bank-app'
               cliProjectName: 'mini-bank-app'
               cliSources: '.'
               extraProperties: |
-                sonar.javascript.lcov.reportPaths=$(Pipeline.Workspace)/MergedCoverage/merged-lcov.info
+                sonar.verbose=true
+                sonar.javascript.lcov.reportPaths=$(Pipeline.Workspace)/Coverage_Linux/lcov.info,$(Pipeline.Workspace)/Coverage_Windows/lcov.info
+                sonar.coverageReportPaths=$(Pipeline.Workspace)/Coverage_Linux/cobertura-coverage.xml,$(Pipeline.Workspace)/Coverage_Windows/cobertura-coverage.xml
                 sonar.exclusions=**/*.flow
 
           - task: SonarCloudAnalyze@1
-            displayName: "SonarCloud Analysis"
+            displayName: "Analyze with SonarCloud"
 
           - task: SonarCloudPublish@1
             inputs:
