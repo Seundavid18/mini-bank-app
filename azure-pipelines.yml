@@ -16,7 +16,7 @@ parameters:
 
   - name: multi_platform_tests
     type: boolean
-    default: false
+    default: true
     displayName: "Enable Windows & Linux Unit Testing"
 
 variables:
