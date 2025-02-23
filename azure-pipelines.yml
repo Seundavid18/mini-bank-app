@@ -142,6 +142,24 @@ steps:
     workingDir: 'client'
     customCommand: 'run build'
 
+# Run Unit Tests
+- task: Npm@1
+  displayName: Unit tests
+  inputs:
+    command: 'custom'
+    workingDir: 'tests'
+    customCommand: 'run test'
+  condition: succeededOrFailed()
+
+# Publish Unit Tests
+- task: PublishTestResults@2
+  displayName: 'Publish Test Results'
+  inputs:
+    testResultsFormat: 'JUnit'
+    testResultsFiles: '**/test-results.xml'
+    failTaskOnFailedTests: true
+  condition: succeededOrFailed()
+
 # SonarCloud Analysis
 - task: SonarCloudPrepare@1
   inputs:
@@ -187,32 +205,6 @@ steps:
     PathtoPublish: '$(Build.ArtifactStagingDirectory)'
     ArtifactName: 'release-$(FULL_VERSION)'
     publishLocation: 'Container'
-
-# Run Unit Tests
-- task: Npm@1
-  displayName: Unit tests
-  inputs:
-    command: 'custom'
-    workingDir: 'tests'
-    customCommand: 'run test'
-  condition: succeededOrFailed()
-
-# Publish Unit Tests
-- task: PublishTestResults@2
-  displayName: 'Publish Test Results'
-  inputs:
-    testResultsFormat: 'JUnit'
-    testResultsFiles: '**/test-results.xml'
-    failTaskOnFailedTests: true
-  condition: succeededOrFailed()
-
-# Install NYC in tests
-- task: Npm@1
-  displayName: 'NPM install NYC in Test'
-  inputs:
-    command: 'custom'
-    workingDir: 'tests'
-    customCommand: 'install --save-dev nyc'
 
 # Publish Coverage results
 - task: PublishCodeCoverageResults@2
